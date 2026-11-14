@@ -14,9 +14,13 @@ from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__, terrain
+import json
+
+from . import __version__, briefing, detective, llm, terrain
 from .chart import place_chart
 from .sources import events, geos, gibs, indices
+from .sources.cache import cached_text
+from .stats import forecast
 from .vitals import VITALS
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
@@ -129,6 +133,62 @@ def terrain_at(
         return _terrain(round(lat, 3), round(lon, 3))
     except httpx.HTTPError as exc:
         raise HTTPException(502, f"Elevation tiles did not answer: {exc}") from exc
+
+
+@app.get("/api/status")
+def status() -> dict:
+    """Which optional capabilities are switched on."""
+    return {"ai": llm.available(), "model": llm.MODEL if llm.available() else None,
+            "pretrained_forecast": forecast._chronos() is not None}
+
+
+@app.get("/api/briefing")
+def world_briefing(ai: bool = Query(True)) -> dict:
+    """The dashboard: planet indicators, ranked events and a short brief."""
+    result = briefing.briefing()
+    result["ai_available"] = llm.available()
+    if ai and llm.available():
+        try:
+            # One AI-written brief per day and per set of top events.
+            top = "|".join(e["title"] for e in result["events"][:5])
+            key = f"{result['date']}_{sum(map(ord, top)) % 10**6}.json"
+            text = cached_text("brief", key, lambda: json.dumps(llm.daily_brief(result)), max_age_days=1)
+            result["brief"], result["brief_written_by"] = json.loads(text), "ai"
+        except Exception as exc:  # noqa: BLE001 - fall back to the rule-written brief
+            result["brief_error"] = str(exc)
+    return result
+
+
+@app.get("/api/case")
+def case_file(
+    lat: float = Query(..., ge=-85, le=85),
+    lon: float = Query(..., ge=-180, le=180),
+    name: str | None = Query(None, max_length=120),
+    author: str = Query("auto", pattern="^(auto|rules|ai)$"),
+) -> dict:
+    """Investigate a place and return a case file with its evidence and critique."""
+    lat, lon = round(lat, 2), round(lon, 2)
+    if author == "ai" and not llm.available():
+        raise HTTPException(503, "No Claude API key is configured, so only the rule-based detective is available.")
+    use_ai = author != "rules" and llm.available()
+    key = f"{'ai' if use_ai else 'rules'}_{lat:+.2f}_{lon:+.2f}.json"
+
+    def build() -> str:
+        if use_ai:
+            try:
+                return json.dumps(llm.investigate(lat, lon, name))
+            except Exception as exc:  # noqa: BLE001 - a failed AI run still owes the reader a case file
+                fallback = detective.investigate(lat, lon, name)
+                fallback["ai_error"] = f"The AI detective could not finish ({exc}); this case was written by rules."
+                return json.dumps(fallback)
+        return json.dumps(detective.investigate(lat, lon, name))
+
+    try:
+        result = json.loads(cached_text("cases", key, build, max_age_days=1))
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"A data source did not answer: {exc}") from exc
+    result["ai_available"] = llm.available()
+    return result
 
 
 @app.get("/")

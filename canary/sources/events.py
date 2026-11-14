@@ -61,6 +61,8 @@ def simplify_eonet(doc: dict) -> list[dict]:
             "title": event.get("title", ""),
             "date": latest.get("date", ""),
             "magnitude": magnitude,
+            "magnitude_value": latest.get("magnitudeValue"),
+            "magnitude_unit": latest.get("magnitudeUnit"),
             "link": (event.get("sources") or [{}])[0].get("url") or event.get("link"),
             "source": "NASA EONET",
         }
@@ -87,6 +89,8 @@ def simplify_usgs(doc: dict) -> list[dict]:
                 "date": p.get("time"),
                 "magnitude": f"M {p.get('mag'):.1f}" if p.get("mag") is not None else None,
                 "mag": p.get("mag"),
+                "magnitude_value": p.get("mag"),
+                "magnitude_unit": "M",
                 "depth_km": depth,
                 "link": p.get("url"),
                 "source": "USGS",

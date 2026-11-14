@@ -7,7 +7,7 @@ import math
 import numpy as np
 
 from .sources import indices, power
-from .stats import ews, teleconnect, trend
+from .stats import ews, forecast, teleconnect, trend
 from .vitals import VITALS, Vital
 
 FDR = 0.05  # accepted false discovery rate
@@ -111,12 +111,26 @@ def _analyse(vital: Vital, series: power.MonthlySeries) -> dict | None:
             },
         },
         "early_warning": None,
+        "forecast": None,
         "suspects": [],
         # Kept for later steps, removed before returning.
         "_anomalies": anomalies,
         "_years": years,
         "_months": months,
     }
+
+    look = forecast.outlook(values, years, months,
+                            lower_bound=None if vital.id == "temperature" else 0.0,
+                            upper_bound=1.0 if vital.unit == "fraction" else 100.0 if vital.unit == "%" else None)
+    if look is not None:
+        result["forecast"] = look.to_dict(vital.decimals + 1)
+        # The last five years of monthly values, so the outlook can be drawn after them.
+        tail = slice(-60, None)
+        result["forecast"]["recent"] = {
+            "years": [int(v) for v in years[tail]], "months": [int(v) for v in months[tail]],
+            "values": _round_list(values[tail], vital.decimals + 1),
+        }
+        result["forecast"]["next_year_vs_normal"] = _clean(look.next_year_mean - baseline_mean)
 
     if vital.early_warning:
         warning = ews.early_warning(anomalies, time)
@@ -227,6 +241,10 @@ def place_chart(lat: float, lon: float) -> dict:
             "early_warning": "Lag-1 autocorrelation and variance in a sliding 10-year window "
                              "on detrended anomalies; Kendall tau judged against 500 "
                              "phase-randomised surrogates.",
+            "forecast": "24-month outlook from whichever model (seasonal average, or trend plus memory, "
+                        "or a pretrained model if installed) had the lowest error in a rolling backtest from "
+                        "six past start dates; the 80% range is the backtest's own error at each lead time. "
+                        "The record ends in December 2025, so the outlook starts in January 2026.",
             "suspects": "Best lagged correlation (mode leading by 0-6 months) of detrended "
                         "anomalies with NOAA climate indices; effective sample size; "
                         "Bonferroni over lags and Benjamini-Hochberg over all pairs.",
