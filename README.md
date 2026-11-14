@@ -42,8 +42,9 @@ plays the record as sound.
 ## Honesty checks built in
 
 - **Memory in the data.** Climate series are autocorrelated, which makes the plain Mann-Kendall
-  test cry wolf. In our simulations of trend-free noise, the plain test flagged 13-55% of series
-  and the common Hamed-Rao correction still flagged 10-23%. Canary applies the larger of the
+  test cry wolf. In our simulations of trend-free noise with lag-1 autocorrelation of 0.4 to 0.8,
+  the plain test flagged 17-55% of series at the 5% level and the common Hamed-Rao correction
+  still flagged 10-23%. Canary applies the larger of the
   Hamed-Rao and AR(1) effective-sample-size corrections, which brings false alarms back to about
   5% (`tests/test_trend.py`).
 - **Many tests at once.** Benjamini-Hochberg false-discovery control is applied across the vital
