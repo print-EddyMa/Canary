@@ -23,8 +23,8 @@ export function niceTicks(min, max, count = 4) {
  * rows(i)     tooltip lines for point i (first line is the heading)
  * onHover(i)  called with the hovered index, or null when the pointer leaves
  */
-export function lineChart({ x, y, fit, fitStrong, zeroLine, area, xTicks = "decades", xFormat, rows, label, onHover, height = 150 }) {
-  const W = 400, H = height, m = { l: 42, r: 12, t: 8, b: 20 };
+export function lineChart({ x, y, fit, fitStrong, zeroLine, area, xTicks = "decades", xFormat, rows, label, onHover, height = 150, width = 400 }) {
+  const W = width, H = height, m = { l: 46, r: 14, t: 8, b: 20 };
   const valid = y.map((v, i) => (v == null ? null : i)).filter((i) => i != null);
   const values = valid.map((i) => y[i]).concat(fit ? fit.map((p) => p.y) : [], zeroLine || area ? [0] : []);
   let lo = Math.min(...values), hi = Math.max(...values);
@@ -233,6 +233,85 @@ export function outlookChart({ observed, outlook, unit, decimals, label, monthNa
     e.preventDefault();
     const next = current < 0 ? points.length - 1 : current + (e.key === "ArrowRight" ? 1 : -1);
     show(Math.max(0, Math.min(points.length - 1, next)));
+  });
+  return wrap;
+}
+
+
+/**
+ * Two regions on one axis, each as its difference from its own normal, so
+ * that a cold region and a warm one can be compared. Each has its trend line.
+ * series: [{name, x, y, fit: [{x, y}, {x, y}], strong}] (exactly two)
+ */
+export function compareChart({ series, unit, decimals, label, width = 600, height = 250 }) {
+  const W = width, H = height, m = { l: 46, r: 14, t: 10, b: 20 };
+  const all = series.flatMap((s) => s.y.filter((v) => v != null).concat(s.fit.map((p) => p.y))).concat([0]);
+  let lo = Math.min(...all), hi = Math.max(...all);
+  const pad = (hi - lo || 1) * 0.08;
+  lo -= pad; hi += pad;
+  const x0 = Math.min(...series.map((s) => s.x[0])), x1 = Math.max(...series.map((s) => s.x[s.x.length - 1]));
+  const sx = (v) => m.l + ((v - x0) / (x1 - x0 || 1)) * (W - m.l - m.r);
+  const sy = (v) => H - m.b - ((v - lo) / (hi - lo)) * (H - m.t - m.b);
+  const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, role: "img", tabindex: 0, "aria-label": label });
+  const yt = niceTicks(lo, hi);
+  for (const t of yt.ticks) {
+    root.append(svg("line", { class: t === 0 ? "zero" : "grid", x1: m.l, x2: W - m.r, y1: sy(t), y2: sy(t) }));
+    const text = svg("text", { class: "tick", x: m.l - 6, y: sy(t) + 3.5, "text-anchor": "end" });
+    text.textContent = (t > 0 ? "+" : "") + fixed(t, yt.decimals);
+    root.append(text);
+  }
+  for (let year = Math.ceil(x0 / 10) * 10; year <= x1; year += 10) {
+    const text = svg("text", { class: "tick", x: sx(year), y: H - 5, "text-anchor": "middle" });
+    text.textContent = year;
+    root.append(text);
+  }
+  series.forEach((s, k) => {
+    let d = "", pen = false;
+    s.y.forEach((v, i) => {
+      if (v == null) { pen = false; return; }
+      d += `${pen ? "L" : "M"}${sx(s.x[i]).toFixed(1)} ${sy(v).toFixed(1)}`;
+      pen = true;
+    });
+    root.append(svg("path", { class: `data series-${k + 1}`, d }));
+    root.append(svg("line", { class: `fit-own series-${k + 1}${s.strong ? "" : " weak"}`,
+      x1: sx(s.fit[0].x), y1: sy(s.fit[0].y), x2: sx(s.fit[1].x), y2: sy(s.fit[1].y) }));
+  });
+  const cross = svg("line", { class: "cross", y1: m.t, y2: H - m.b, visibility: "hidden" });
+  root.append(cross);
+  const tooltip = el("div", { class: "tooltip", hidden: "" });
+  const wrap = el("div", { class: "plot" }, root, tooltip);
+  const years = [...new Set(series.flatMap((s) => s.x))].sort((a, b) => a - b);
+  let current = -1;
+  const show = (i) => {
+    current = i;
+    const year = years[i], px = sx(year);
+    cross.setAttribute("x1", px); cross.setAttribute("x2", px); cross.setAttribute("visibility", "visible");
+    tooltip.replaceChildren(el("strong", { text: String(year) }));
+    series.forEach((s, k) => {
+      const v = s.y[s.x.indexOf(year)];
+      if (v == null) return;
+      tooltip.append(el("div", { class: "tip-row" }, el("i", { class: `key series-${k + 1}` }),
+        el("b", { text: `${v > 0 ? "+" : ""}${fixed(v, decimals)} ${unit}` }), ` ${s.name}`));
+    });
+    tooltip.hidden = false;
+    const left = px * (wrap.clientWidth / W), flip = left > wrap.clientWidth * 0.6;
+    tooltip.style.left = flip ? "" : `${left + 10}px`;
+    tooltip.style.right = flip ? `${wrap.clientWidth - left + 10}px` : "";
+  };
+  const hide = () => { current = -1; cross.setAttribute("visibility", "hidden"); tooltip.hidden = true; };
+  root.addEventListener("pointermove", (e) => {
+    const box = root.getBoundingClientRect();
+    const v = x0 + (((e.clientX - box.left) / box.width) * W - m.l) / (W - m.l - m.r) * (x1 - x0);
+    let best = 0;
+    years.forEach((y, i) => { if (Math.abs(y - v) < Math.abs(years[best] - v)) best = i; });
+    show(best);
+  });
+  root.addEventListener("pointerleave", hide);
+  root.addEventListener("blur", hide);
+  root.addEventListener("keydown", (e) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    e.preventDefault();
+    show(Math.max(0, Math.min(years.length - 1, current < 0 ? years.length - 1 : current + (e.key === "ArrowRight" ? 1 : -1))));
   });
   return wrap;
 }

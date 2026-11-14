@@ -485,7 +485,7 @@ function showWelcome() {
   marker.remove();
   popup.remove();
   clearPlaceLayers();
-  history.replaceState(null, "", location.pathname);
+  history.replaceState(null, "", "#explore");
   map.flyTo({ ...HOME, duration: 1500 });
 }
 
@@ -749,6 +749,9 @@ document.addEventListener("click", (e) => { if (!searchForm.contains(e.target)) 
 
 /* ---------- start ---------- */
 
+let markReady;
+const ready = new Promise((resolve) => { markReady = resolve; });
+
 map.on("load", async () => {
   // Phones start with the layer list folded away.
   if (window.matchMedia("(max-width: 820px)").matches) document.getElementById("dock-toggle").click();
@@ -776,7 +779,8 @@ map.on("load", async () => {
   } else {
     spin();
   }
+  markReady();
 });
 
 // For tests and the console.
-window.canary = { map, state, select, setOverlay, setTab, wind, thousands };
+window.canary = { map, state, select, setOverlay, setTab, wind, thousands, ready };

@@ -1,10 +1,10 @@
 # Canary
 
-**Vital signs for planet Earth.** A dashboard of what matters on Earth today, on a 3D globe that
-shows where the planet is changing, what satellites see, and what is happening right now. Click
-any place or event for its dossier: ten vital signs from NASA records since 1981 with trends and
-significance, a tested outlook, the shape of the land, where the rain that falls there ends up,
-current conditions, and a case file written by a detective and attacked by a skeptic.
+**Be an Earth trend detective.** Ask "Is [a variable] changing in [a region]?" and get a
+verdict in plain words: rising or falling, by how much per decade, and whether the change is
+significant or could be chance. Then see where it is changing on a map, compare two regions,
+and check the evidence. A live 3D globe with satellite layers, events, terrain and an AI
+detective sits one click behind.
 
 Built for the 2026 NASA Space Apps Challenge,
 [Be An Earth System Trend Detective!](https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/)
@@ -13,7 +13,7 @@ Built for the 2026 NASA Space Apps Challenge,
 
 ```bash
 python3 -m venv .venv
-.venv/bin/pip install -e ".[dev,maps]"
+.venv/bin/pip install -e ".[dev]"
 .venv/bin/uvicorn canary.api:app --port 8000
 ```
 
@@ -30,12 +30,34 @@ Without a key, case files and the daily brief are written by fixed rules and lab
 ```bash
 .venv/bin/python -m pytest                      # all tests (some call live services)
 .venv/bin/python -m pytest -m "not network"
-.venv/bin/python -m canary.globalmap            # recompute the global trend maps (about a minute)
+.venv/bin/python -m canary.cube                 # fetch the global grids now (otherwise on first use; about 1 GB)
+.venv/bin/python -m canary.globalmap            # recompute the trend maps for all 26 variables
 ```
+
+## How it answers the challenge
+
+| The challenge asks for | Where it is in Canary |
+|---|---|
+| Identify variables of interest | A picker of 26 variables in five themes, each with a plain definition; a three-question guide that suggests where to start; a scan that tests every variable in a region and ranks the ones that are trending |
+| Acquire the data for a region | The whole world, 13 named regions, 7 continents, 177 countries, or a box drawn on the map; area-weighted averages from NASA POWER global grids (MERRA-2 and CERES) |
+| Visualise the time series | Yearly series with the trend line, hover readout, data table and CSV download; two regions on one chart |
+| Rate of change and significance | Theil-Sen slope with a 95% range; Mann-Kendall test and a t-test on the least-squares slope, both corrected for memory in the data; the size of the change against normal year-to-year swings |
+| What is changing, where, how much, significant? | One verdict sentence, a trend map of every grid cell (bright where significant), and the share of the region rising and falling |
+| "Opposite trends from the same process" | Compare mode: for example, haze rising over India and falling over Japan |
+| "A trend may need a longer record" | When a trend is not significant, an estimate of how many more years of data would settle it |
+| Demonstration examples to watch | Three one-minute walkthroughs on real data |
 
 ## What you can do
 
-### Start from the dashboard
+### Start page: investigate a trend
+
+Pick a variable and a region in the sentence at the top (or click a country on the map). The page
+shows the verdict, the series, the trend map, the two significance tests, what might explain the
+change, and every other variable in that region ranked by how strongly it is trending. A strip at
+the bottom shows planet-wide indicators and live events. Everything below this point lives in
+**Explore the live globe**.
+
+### Explore mode: the dashboard
 
 | Part | What it shows | Source |
 |---|---|---|
@@ -145,6 +167,10 @@ canary/
   chart.py              assembles one place's vital signs
   sources/planet.py     global temperature, CO2, sea ice, El Niño status
   stats/forecast.py     backtested outlooks
+  catalogue.py          the 26 variables, themes and guide questions
+  cube.py               global annual grids, fetched once and memory-mapped
+  regions.py            world, named regions, countries, continents, boxes
+  investigate.py        regional series, trend, significance, scan
   globalmap.py          global trend maps and the alarm map
   terrain.py            terrain shape, flow routing, raindrop paths
   briefing.py           event severity ranking and the rule-written brief
@@ -152,7 +178,8 @@ canary/
   llm.py                Claude investigator, skeptic, revision and daily brief
   api.py                FastAPI app, also serves web/
 web/
-  app.js                map, layers, legends, place selection
+  start.js              the start page: question, verdict, cards, compare, guide, walkthroughs
+  app.js                Explore mode: map, layers, legends, place selection
   dashboard.js          the world dashboard and the case-file view
   dossier.js            vital signs, land and water, right now
   charts.js             SVG line charts with crosshair and tooltip
@@ -164,6 +191,9 @@ reports/                research survey of data, tools and methods
 
 ## Not built yet
 
+- River basins as regions (no small, openly licensed basin file to ship).
+- Monthly or seasonal regional series; regions are analysed on yearly averages.
+- The trend map for a chosen sub-period; it always shows each variable's full record.
 - Satellite-only vital signs with long records: GRACE water storage, MODIS vegetation, FIRMS fire.
 - Water-balance attribution (climate versus human water use).
 - Forecasts that use the state of El Niño as an input.

@@ -3,67 +3,157 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Canary: vital signs for planet Earth</title>
+  <title>Canary: be an Earth trend detective</title>
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="map" aria-label="Globe. Click anywhere to open that place's dossier."></div>
 
-  <header class="topbar">
-    <div class="brand">
-      <span class="brand-mark" aria-hidden="true"></span>
-      <span class="brand-name">Canary</span>
-      <span class="brand-tag">vital signs for planet Earth</span>
-    </div>
-    <form id="search" class="search" role="search" autocomplete="off">
-      <input id="search-input" type="search" placeholder="Search for a place" aria-label="Search for a place">
-      <ul id="search-results" class="search-results" hidden></ul>
-    </form>
-  </header>
-
-  <nav id="dock" class="dock" aria-label="Map layers">
-    <button id="dock-toggle" class="dock-toggle" type="button" aria-expanded="true" aria-controls="dock-body">
-      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 15 4.5 8 8 1 4.5Zm-5.2 6L8 9.6 13.2 7 15 7.9 8 11.4 1 7.9Zm0 3.4L8 13 13.2 10.4 15 11.3 8 14.8 1 11.3Z" fill="currentColor"/></svg>
-      Layers
-    </button>
-    <div id="dock-body" class="dock-body"></div>
-  </nav>
-
-  <section id="legend" class="legend-card" aria-live="polite" hidden></section>
-  <div id="hud" class="hud" aria-hidden="true"></div>
-
-  <aside id="panel" class="panel">
-    <section id="welcome" class="welcome">
-      <div id="dashboard"><h1>Earth today</h1><p class="loading-note">Reading the planet’s indicators and live events…</p></div>
-      <h2>Investigate any place</h2>
-      <p>Click anywhere on the globe, or search for a place. Canary reads ten vital signs from NASA
-        records since 1981, says what is changing and whether it is more than chance, gives a
-        tested outlook, traces where the rain goes, and has a detective write up the case.</p>
-      <h2>Look at the whole planet</h2>
-      <ul id="views" class="demos"></ul>
-      <h2>Open a case</h2>
-      <ul id="demos" class="demos"></ul>
-      <p class="fine">Data: NASA POWER (MERRA-2 reanalysis, CERES), NASA GIBS imagery, NASA GEOS-FP
-        weather analysis, NASA EONET events, USGS earthquakes, NASA GISTEMP, NOAA climate indices and CO2,
-        NSIDC sea ice, Terrain Tiles (NASA SRTM and others), Natural Earth rivers.</p>
-    </section>
-    <section id="place" hidden>
-      <div id="place-head"></div>
-      <div class="tabs" role="tablist">
-        <button role="tab" id="tab-vitals" aria-controls="pane-vitals" aria-selected="true" type="button">Vital signs</button>
-        <button role="tab" id="tab-terrain" aria-controls="pane-terrain" aria-selected="false" type="button">Land and water</button>
-        <button role="tab" id="tab-now" aria-controls="pane-now" aria-selected="false" type="button">Right now</button>
-        <button role="tab" id="tab-case" aria-controls="pane-case" aria-selected="false" type="button">Detective</button>
+  <!-- ===== Start page: investigate a variable in a region ===== -->
+  <main id="start" class="start">
+    <header class="s-top">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Canary</span>
+        <span class="brand-tag">be an Earth trend detective</span>
       </div>
-      <div id="pane-vitals" role="tabpanel" aria-labelledby="tab-vitals"></div>
-      <div id="pane-terrain" role="tabpanel" aria-labelledby="tab-terrain" hidden></div>
-      <div id="pane-now" role="tabpanel" aria-labelledby="tab-now" hidden></div>
-      <div id="pane-case" role="tabpanel" aria-labelledby="tab-case" hidden></div>
+      <button id="go-explore" class="ghost" type="button">Explore the live globe &rarr;</button>
+    </header>
+
+    <section id="ask" class="ask">
+      <h1 class="sentence">
+        Is
+        <button id="pick-variable" class="slot" type="button" aria-label="Choose a variable">air temperature</button>
+        changing in
+        <button id="pick-region" class="slot" type="button" aria-label="Choose a region">the whole world</button><span id="compare-slot"></span>?
+      </h1>
+      <p class="period">
+        Looking at
+        <label class="visually-hidden" for="year-start">First year</label><select id="year-start"></select>
+        to
+        <label class="visually-hidden" for="year-end">Last year</label><select id="year-end"></select>
+        <button id="add-compare" class="ghost" type="button">+ Compare with another region</button>
+        <button id="open-guide" class="ghost" type="button">Not sure what to look at? Answer 3 questions</button>
+      </p>
+      <p id="definition" class="definition"></p>
     </section>
-  </aside>
+
+    <div class="results">
+      <section id="verdict" aria-live="polite"><p class="loading-note">Reading NASA's records&hellip;</p></section>
+
+      <section class="cards">
+        <article id="card-series" class="card">
+          <h2>How it changed over time</h2>
+          <div id="series-body"></div>
+        </article>
+        <article id="card-map" class="card">
+          <h2>Where it is changing</h2>
+          <div class="map-frame"><div id="start-map"></div></div>
+          <p class="map-tools"><span id="map-hint">Click a country to investigate it, or draw a box.</span>
+            <button id="draw-box" class="ghost" type="button">Draw a box</button></p>
+          <div id="map-legend"></div>
+        </article>
+      </section>
+
+      <section class="cards">
+        <article id="card-numbers" class="card">
+          <h2>How much, and is it significant?</h2>
+          <div id="numbers-body"></div>
+        </article>
+        <article id="card-why" class="card">
+          <h2>What might explain it</h2>
+          <div id="why-body"></div>
+        </article>
+      </section>
+
+      <section id="card-scan" class="card">
+        <h2 id="scan-title">What else is changing here?</h2>
+        <div id="scan-body"></div>
+      </section>
+    </div>
+
+    <section class="block">
+      <h2>Watch a case</h2>
+      <p class="block-note">Three short walkthroughs on real data. Each one sets up an investigation and talks you through reading it.</p>
+      <div id="demo-list" class="demo-list"></div>
+    </section>
+
+    <section class="block">
+      <h2>Happening now</h2>
+      <div id="strip-body" class="strip"><p class="loading-note">Loading the planet's indicators and live events&hellip;</p></div>
+      <p id="strip-note" class="plot-caption"></p>
+    </section>
+
+    <footer class="s-foot">
+      <p>Data: NASA POWER global annual grids (MERRA-2 reanalysis from 1981; CERES SYN1deg satellite record from 2001),
+        NASA GIBS imagery, NASA EONET, NASA GISTEMP, USGS, NOAA and NSIDC indicators, Natural Earth outlines.
+        Trend: Theil-Sen slope. Significance: Mann-Kendall test corrected for memory in the data, with a least-squares
+        t-test as a second opinion. Built for the 2026 NASA Space Apps Challenge.</p>
+    </footer>
+
+    <dialog id="picker" class="picker"></dialog>
+    <div id="tour" class="tour" role="status" aria-live="polite" hidden></div>
+  </main>
+
+  <!-- ===== Explore mode: the live globe ===== -->
+  <div id="explore" hidden>
+    <div id="map" aria-label="Globe. Click anywhere to open that place's dossier."></div>
+
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark" aria-hidden="true"></span>
+        <span class="brand-name">Canary</span>
+        <button id="to-start" class="brand-link" type="button">&larr; Investigate a trend</button>
+      </div>
+      <form id="search" class="search" role="search" autocomplete="off">
+        <input id="search-input" type="search" placeholder="Search for a place" aria-label="Search for a place">
+        <ul id="search-results" class="search-results" hidden></ul>
+      </form>
+    </header>
+
+    <nav id="dock" class="dock" aria-label="Map layers">
+      <button id="dock-toggle" class="dock-toggle" type="button" aria-expanded="true" aria-controls="dock-body">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 15 4.5 8 8 1 4.5Zm-5.2 6L8 9.6 13.2 7 15 7.9 8 11.4 1 7.9Zm0 3.4L8 13 13.2 10.4 15 11.3 8 14.8 1 11.3Z" fill="currentColor"/></svg>
+        Layers
+      </button>
+      <div id="dock-body" class="dock-body"></div>
+    </nav>
+
+    <section id="legend" class="legend-card" aria-live="polite" hidden></section>
+    <div id="hud" class="hud" aria-hidden="true"></div>
+
+    <aside id="panel" class="panel">
+      <section id="welcome" class="welcome">
+        <div id="dashboard"><h1>Earth today</h1><p class="loading-note">Reading the planet's indicators and live events&hellip;</p></div>
+        <h2>Investigate any place</h2>
+        <p>Click anywhere on the globe, or search for a place. Canary reads ten vital signs from NASA
+          records since 1981, says what is changing and whether it is more than chance, gives a
+          tested outlook, traces where the rain goes, and has a detective write up the case.</p>
+        <h2>Look at the whole planet</h2>
+        <ul id="views" class="demos"></ul>
+        <h2>Open a case</h2>
+        <ul id="demos" class="demos"></ul>
+        <p class="fine">Data: NASA POWER (MERRA-2 reanalysis, CERES), NASA GIBS imagery, NASA GEOS-FP
+          weather analysis, NASA EONET events, USGS earthquakes, NASA GISTEMP, NOAA climate indices and CO2,
+          NSIDC sea ice, Terrain Tiles (NASA SRTM and others), Natural Earth rivers.</p>
+      </section>
+      <section id="place" hidden>
+        <div id="place-head"></div>
+        <div class="tabs" role="tablist">
+          <button role="tab" id="tab-vitals" aria-controls="pane-vitals" aria-selected="true" type="button">Vital signs</button>
+          <button role="tab" id="tab-terrain" aria-controls="pane-terrain" aria-selected="false" type="button">Land and water</button>
+          <button role="tab" id="tab-now" aria-controls="pane-now" aria-selected="false" type="button">Right now</button>
+          <button role="tab" id="tab-case" aria-controls="pane-case" aria-selected="false" type="button">Detective</button>
+        </div>
+        <div id="pane-vitals" role="tabpanel" aria-labelledby="tab-vitals"></div>
+        <div id="pane-terrain" role="tabpanel" aria-labelledby="tab-terrain" hidden></div>
+        <div id="pane-now" role="tabpanel" aria-labelledby="tab-now" hidden></div>
+        <div id="pane-case" role="tabpanel" aria-labelledby="tab-case" hidden></div>
+      </section>
+    </aside>
+  </div>
 
   <script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>
-  <script type="module" src="app.js"></script>
+  <script type="module" src="start.js"></script>
 </body>
 </html>
