@@ -1,9 +1,10 @@
 # Canary
 
-**Vital signs for planet Earth.** A 3D globe that shows where Earth is changing, what satellites
-see today, and what is happening right now. Click any place for its dossier: ten vital signs
-from NASA records since 1981 with trends and significance, the shape of the land, where the
-rain that falls there ends up, and current conditions.
+**Vital signs for planet Earth.** A dashboard of what matters on Earth today, on a 3D globe that
+shows where the planet is changing, what satellites see, and what is happening right now. Click
+any place or event for its dossier: ten vital signs from NASA records since 1981 with trends and
+significance, a tested outlook, the shape of the land, where the rain that falls there ends up,
+current conditions, and a case file written by a detective and attacked by a skeptic.
 
 Built for the 2026 NASA Space Apps Challenge,
 [Be An Earth System Trend Detective!](https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/)
@@ -16,7 +17,15 @@ python3 -m venv .venv
 .venv/bin/uvicorn canary.api:app --port 8000
 ```
 
-Open http://localhost:8000. No API keys or logins are needed.
+Open http://localhost:8000. No API keys or logins are needed for anything except the AI
+detective, which is optional:
+
+```bash
+export ANTHROPIC_API_KEY=...                        # switches on the Claude-powered detective and brief
+.venv/bin/pip install -e ".[forecast]"              # adds a pretrained forecasting model to the backtest
+```
+
+Without a key, case files and the daily brief are written by fixed rules and labelled as such.
 
 ```bash
 .venv/bin/python -m pytest                      # all tests (some call live services)
@@ -25,6 +34,14 @@ Open http://localhost:8000. No API keys or logins are needed.
 ```
 
 ## What you can do
+
+### Start from the dashboard
+
+| Part | What it shows | Source |
+|---|---|---|
+| Planet indicators | Global temperature, carbon dioxide, Arctic sea ice, El Niño: latest value, rank, trend and history | NASA GISTEMP, NOAA GML, NSIDC, NOAA PSL |
+| The brief | Four to six lines on what is unusual today | Written by Claude from the page's own figures, or by rules |
+| Biggest events now | Storms, earthquakes, wildfires and volcanoes on one severity scale, each with an Investigate button | NASA EONET, USGS |
 
 ### Look at the whole planet
 
@@ -45,10 +62,34 @@ Open http://localhost:8000. No API keys or logins are needed.
 | Vital signs | Temperature, precipitation, root-zone soil wetness, evaporation, humidity, wind, sunlight, cloud, snow depth, haze: rate of change, 95% range, whether it is more than chance, and whether it has left the normal range | Theil-Sen slope and Mann-Kendall test on monthly anomalies, corrected for memory, with false-discovery control |
 | | Which planet-wide rhythm the place follows (El Niño and four others) | Lagged correlation with NOAA climate indices |
 | | Early-warning signs of lost stability | Rising autocorrelation and variance against 500 surrogates |
+| | A 24-month outlook, shown only with its measured skill | Rolling backtest from six past start dates; the winner among seasonal average, trend plus memory, and a pretrained model is used |
 | Land and water | Elevation, slope, aspect, relief | Horn's method on 150 m elevation |
 | | Where a raindrop falling there goes: the route, the rivers it joins, the distance and the drop, with an elevation profile linked to the map | Priority-Flood flow routing at three scales |
 | | The local stream network | Flow accumulation |
 | Right now | Temperature, wind and pressure; natural events within 1,000 km | NASA GEOS-FP, NASA EONET, USGS |
+| Detective | A case file: headline, findings with confidence and numbered evidence, suspects with the case for and against, outlook, the skeptic's objections and how each was handled | See below |
+
+### The detective and the skeptic
+
+Three roles in three separate conversations, so that no role marks its own work
+(`canary/llm.py`, model `claude-opus-5-5`):
+
+1. **Investigator.** Given a place and nine tools (vital signs, climate links, stability check,
+   outlook, terrain and water, current conditions, nearby events, planet context, and a
+   comparison with any other place), it decides what to read and in what order. It is told to
+   test at least one alternative explanation, for example by checking whether a change is shared
+   by neighbours.
+2. **Skeptic.** A fresh Claude instance that sees only the evidence and the draft, and is asked
+   to find what is overstated, unsupported, or explained as well by a data artefact or chance.
+3. **Revision.** The investigator must answer every objection: change the case file or say which
+   evidence settles it.
+
+Then code, not a model, traces every figure in the final text back to the numbered evidence and
+shows the count ("23 of 23 figures traced"). The models can read Canary's numbers but have no
+way to introduce their own without it showing.
+
+The same tools and the same output shape back a rule-based author (`canary/detective.py`) used
+when no key is set. Its skeptic is the fixed list of objections a careful scientist would raise.
 
 Every chart has a hover readout, a data table and the full statistics. Vital-sign charts can
 also be played as sound.
@@ -76,6 +117,14 @@ also be played as sound.
   by the Mississippi, Cusco to the Atlantic by the Amazon, Salt Lake City staying in its closed
   basin). The two known failures are shallow inland basins, Lake Chad and Lake Eyre, which are
   routed onward to the sea. The app says so.
+- **Forecasts.** Every outlook is first tested on the past against the obvious guess, a normal
+  year. Where nothing beats that guess, Canary shows the normal year and says so. On the places
+  checked, the winning method beat it by 0-40% depending on the variable. The 80% range comes
+  from the backtest's own errors and held about 78% of outcomes it was not fitted to. The record
+  ends in December 2025, so outlooks start there and do not know about the El Niño of 2026.
+- **Event ranking.** Events are ranked by physical size, not harm; the ranking knows nothing about
+  who lives nearby, and says so. A case opened on an event reports the long-term record at its
+  location as background and does not attribute the event to it.
 - **Stated limits.** Reanalysis is a weather model constrained by observations, not a single
   instrument; changes in the observing system can leave artificial steps. A correlation with a
   climate mode is a suspect, not a proven cause. An early-warning signal is not a forecast.
@@ -94,12 +143,18 @@ canary/
   stats/teleconnect.py  lagged links to climate modes
   vitals.py             the vital-sign registry and definitions
   chart.py              assembles one place's vital signs
+  sources/planet.py     global temperature, CO2, sea ice, El Niño status
+  stats/forecast.py     backtested outlooks
   globalmap.py          global trend maps and the alarm map
   terrain.py            terrain shape, flow routing, raindrop paths
+  briefing.py           event severity ranking and the rule-written brief
+  detective.py          evidence tools, rule-based case files, number tracing
+  llm.py                Claude investigator, skeptic, revision and daily brief
   api.py                FastAPI app, also serves web/
 web/
   app.js                map, layers, legends, place selection
-  dossier.js            the three tabs of a place
+  dashboard.js          the world dashboard and the case-file view
+  dossier.js            vital signs, land and water, right now
   charts.js             SVG line charts with crosshair and tooltip
   wind.js               wind particle animation
   maps/                 precomputed trend and alarm maps
@@ -111,13 +166,12 @@ reports/                research survey of data, tools and methods
 
 - Satellite-only vital signs with long records: GRACE water storage, MODIS vegetation, FIRMS fire.
 - Water-balance attribution (climate versus human water use).
-- Forecasts with a pretrained time-series model, with backtests.
-- Detective and skeptic AI agents that choose variables and write up each case.
+- Forecasts that use the state of El Niño as an input.
 - A global map of the early-warning (tipping-point) signal.
 
 ## Data credits
 
-NASA POWER (NASA Langley), NASA GIBS (ESDIS), NASA GEOS-FP (GMAO), NASA EONET, USGS Earthquake
-Hazards Program, NOAA PSL, CPC and NCEI climate indices, Terrain Tiles on AWS (NASA SRTM, GMTED2010,
+NASA POWER (NASA Langley), NASA GIBS (ESDIS), NASA GEOS-FP (GMAO), NASA EONET, NASA GISTEMP, USGS Earthquake
+Hazards Program, NOAA PSL, CPC and NCEI climate indices, NOAA GML carbon dioxide, NSIDC Sea Ice Index, Terrain Tiles on AWS (NASA SRTM, GMTED2010,
 ETOPO1 and national surveys), Natural Earth rivers and coastlines, Open-Meteo geocoding (GeoNames),
 OpenStreetMap contributors (map labels).

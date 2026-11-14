@@ -349,7 +349,7 @@ def rule_case(case: Case) -> tuple[dict, dict]:
         why = "The change is larger than the variation people and ecosystems here are used to."
         evidence = [vit["id"]]
         w = world_rows.get(r["vital_sign"])
-        if w and w["average_change_per_decade_over_mapped_area"]:
+        if w and w["average_change_per_decade_over_mapped_area"] and w["percent_of_mapped_area_with_real_trend"] >= 30:
             ratio = r["change_per_decade"] / w["average_change_per_decade_over_mapped_area"]
             if ratio > 1.5:
                 why = (f"That is faster than the average over the mapped world "
@@ -478,7 +478,27 @@ def rule_case(case: Case) -> tuple[dict, dict]:
 
     level = vit["facts"]["condition"] if vit else "unknown"
     lead = changed[0] if changed else None
-    if lead:
+    on_site = None
+    if near:
+        on_site = next((e for e in near["facts"]["events"] if e["distance_km"] <= 60), None)
+    if on_site:
+        findings.insert(0, {
+            "claim": f"{on_site['event']} is in progress at this location: {on_site['kind'].lower()}, "
+                     f"{on_site['level'].lower()}, {on_site['size']}.",
+            "evidence": [near["id"]], "confidence": "high",
+            "why_it_matters": "This case was opened on the event. The findings below describe the long-term record at "
+                              "its location, which is background, not an explanation of the event."})
+        for o in objections:
+            if o["finding"] > 0:
+                o["finding"] += 1
+        objections.append({"finding": 1, "severity": "major",
+                           "problem": "Nothing in this evidence shows that the long-term trends here caused or worsened "
+                                      "this event.",
+                           "fix": "The case file reports the event and the background side by side without linking them."})
+    if on_site:
+        outside = f"{len(changed)} vital sign{'s' if len(changed) != 1 else ''} outside the normal range"
+        headline = f"{on_site['event']}: {on_site['size']}; the long record at this location shows {outside}"
+    elif lead:
         headline = (f"{place}: {lead['vital_sign'].lower()} has {'risen' if lead['direction'] == 'rising' else 'fallen'} "
                     f"beyond its normal range" + (f", with {len(changed) - 1} more vital sign"
                                                   f"{'s' if len(changed) > 2 else ''} following" if len(changed) > 1 else ""))

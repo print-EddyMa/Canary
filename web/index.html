@@ -35,18 +35,18 @@
 
   <aside id="panel" class="panel">
     <section id="welcome" class="welcome">
-      <h1>How is this place doing?</h1>
-      <p>Click anywhere on the globe, or search for a place. Canary reads up to ten vital signs
-        from NASA records since 1981 and tells you what is changing, by how much, and whether
-        it is more than chance. It also shows the shape of the land, where the rain that falls
-        there ends up, and what is happening right now.</p>
+      <div id="dashboard"><h1>Earth today</h1><p class="loading-note">Reading the planet’s indicators and live events…</p></div>
+      <h2>Investigate any place</h2>
+      <p>Click anywhere on the globe, or search for a place. Canary reads ten vital signs from NASA
+        records since 1981, says what is changing and whether it is more than chance, gives a
+        tested outlook, traces where the rain goes, and has a detective write up the case.</p>
       <h2>Look at the whole planet</h2>
       <ul id="views" class="demos"></ul>
       <h2>Open a case</h2>
       <ul id="demos" class="demos"></ul>
       <p class="fine">Data: NASA POWER (MERRA-2 reanalysis, CERES), NASA GIBS imagery, NASA GEOS-FP
-        weather analysis, NASA EONET events, USGS earthquakes, NOAA climate indices, Terrain Tiles
-        (NASA SRTM and others), Natural Earth rivers.</p>
+        weather analysis, NASA EONET events, USGS earthquakes, NASA GISTEMP, NOAA climate indices and CO2,
+        NSIDC sea ice, Terrain Tiles (NASA SRTM and others), Natural Earth rivers.</p>
     </section>
     <section id="place" hidden>
       <div id="place-head"></div>
@@ -54,10 +54,12 @@
         <button role="tab" id="tab-vitals" aria-controls="pane-vitals" aria-selected="true" type="button">Vital signs</button>
         <button role="tab" id="tab-terrain" aria-controls="pane-terrain" aria-selected="false" type="button">Land and water</button>
         <button role="tab" id="tab-now" aria-controls="pane-now" aria-selected="false" type="button">Right now</button>
+        <button role="tab" id="tab-case" aria-controls="pane-case" aria-selected="false" type="button">Detective</button>
       </div>
       <div id="pane-vitals" role="tabpanel" aria-labelledby="tab-vitals"></div>
       <div id="pane-terrain" role="tabpanel" aria-labelledby="tab-terrain" hidden></div>
       <div id="pane-now" role="tabpanel" aria-labelledby="tab-now" hidden></div>
+      <div id="pane-case" role="tabpanel" aria-labelledby="tab-case" hidden></div>
     </section>
   </aside>
 

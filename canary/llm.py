@@ -143,6 +143,9 @@ find decide the rest.
 - Test at least one explanation instead of accepting the first. If a vital sign has changed sharply, compare \
 with one or two other places to see whether the change is regional or confined to this grid cell, and check \
 whether a climate rhythm or the planet-wide trend accounts for it.
+- If the place is the site of a current event (a storm, fire or earthquake), report the event, then say what the \
+long-term record at that location does and does not tell us about it. A trend at the site is background; it is \
+not evidence that the trend caused the event.
 - Stop when further tools would not change the case.
 
 What counts as knowledge here

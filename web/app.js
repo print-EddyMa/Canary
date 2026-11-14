@@ -1,5 +1,6 @@
 /* Canary front end: the globe, its layers, and the place dossier. */
 
+import { caseView, renderDashboard } from "./dashboard.js";
 import { conditionCard, nowTab, silence, terrainTab, vitalsTab } from "./dossier.js";
 import { coordText, el, fixed, getJSON, kmBetween, sig, thousands } from "./util.js";
 import { WindLayer } from "./wind.js";
@@ -417,7 +418,9 @@ const panes = {
   vitals: document.getElementById("pane-vitals"),
   terrain: document.getElementById("pane-terrain"),
   now: document.getElementById("pane-now"),
+  case: document.getElementById("pane-case"),
 };
+let caseFor = null; // "lat,lon" of the case file already requested
 let dropTimer = null;
 
 function setTab(tab) {
@@ -427,6 +430,39 @@ function setTab(tab) {
     document.getElementById(`tab-${name}`).setAttribute("aria-selected", String(name === tab));
   }
   silence();
+  if (tab === "case") openCase();
+}
+
+/** Ask the detective for this place's case file, once. */
+function openCase() {
+  const place = state.place;
+  if (!place) return;
+  const key = `${place.lat.toFixed(2)},${place.lon.toFixed(2)}`;
+  if (caseFor === key) return;
+  caseFor = key;
+  if (Math.abs(place.lat) > 85) {
+    panes.case.replaceChildren(el("p", { class: "vital-reading", text: "The detective does not cover the area this close to the pole." }));
+    return;
+  }
+  const id = requestId;
+  panes.case.replaceChildren(el("p", { class: "loading-note",
+    text: "The detective is gathering evidence. With an AI key this takes about a minute: it investigates, a skeptic attacks the draft, and the case is revised." }));
+  const name = place.name ? `&name=${encodeURIComponent(place.name)}` : "";
+  getJSON(`/api/case?lat=${place.lat.toFixed(2)}&lon=${place.lon.toFixed(2)}${name}`).then((result) => {
+    if (id !== requestId) return;
+    panes.case.replaceChildren(...caseView(result, {
+      showEvidence: (evidenceId) => {
+        const node = document.getElementById(`evidence-${evidenceId}`);
+        if (!node) return;
+        node.open = true;
+        node.scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "center" });
+      },
+    }));
+  }).catch((error) => {
+    if (id !== requestId) return;
+    caseFor = null;
+    panes.case.replaceChildren(el("div", { class: "error", text: `The detective could not finish: ${error.message}` }));
+  });
 }
 for (const name of Object.keys(panes)) {
   document.getElementById(`tab-${name}`).addEventListener("click", () => setTab(name));
@@ -523,9 +559,10 @@ function showEventPopup(feature, lngLat) {
   popup.setLngLat(lngLat ?? feature.geometry.coordinates).setDOMContent(body).addTo(map);
 }
 
-async function select(lat, lon, name, { fly = true } = {}) {
+async function select(lat, lon, name, { fly = true, tab = null } = {}) {
   lon = ((((lon + 180) % 360) + 360) % 360) - 180;
   const id = ++requestId;
+  caseFor = null;
   spinning = false;
   silence();
   popup.remove();
@@ -545,6 +582,9 @@ async function select(lat, lon, name, { fly = true } = {}) {
   panes.vitals.replaceChildren(loading("Reading 45 years of NASA records…"));
   panes.terrain.replaceChildren(loading("Reading the terrain and tracing the raindrop…"));
   panes.now.replaceChildren(loading("Fetching live conditions…"));
+  panes.case.replaceChildren();
+  // A case file belongs to one place: reopen it if that tab is showing, or was asked for.
+  if (tab) setTab(tab); else if (state.tab === "case") openCase();
   history.replaceState(null, "", `#${lat.toFixed(2)},${lon.toFixed(2)}${name ? "," + encodeURIComponent(name) : ""}`);
   document.getElementById("panel").scrollTop = 0;
 
@@ -612,6 +652,34 @@ function spin() {
   const c = map.getCenter();
   map.jumpTo({ center: [c.lng + 0.04, c.lat] });
   requestAnimationFrame(spin);
+}
+
+/* ---------- world dashboard ---------- */
+
+async function loadDashboard() {
+  const box = document.getElementById("dashboard");
+  const hooks = {
+    flyTo: (lat, lon) => { spinning = false; map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 4), duration: 1500 }); },
+    showEvent: (e) => {
+      spinning = false;
+      map.flyTo({ center: [e.lon, e.lat], zoom: Math.max(map.getZoom(), 4.5), duration: 1500 });
+      showEventPopup({ properties: { title: e.title, kind_label: `${e.kind_label} · ${e.level}`, magnitude: e.size,
+        date: e.date, source: e.source, link: e.link }, geometry: { coordinates: [e.lon, e.lat] } });
+    },
+    investigate: (e) => select(e.lat, e.lon, e.title, { tab: "case" }),
+  };
+  try {
+    // Show the rule-written brief at once, then replace it with the AI-written one if there is a key.
+    const quick = await getJSON("/api/briefing?ai=false");
+    renderDashboard(box, quick, hooks);
+    if (quick.ai_available) {
+      const full = await getJSON("/api/briefing?ai=true");
+      renderDashboard(box, full, hooks);
+    }
+  } catch (error) {
+    box.replaceChildren(el("h1", { text: "Earth today" }),
+      el("div", { class: "error", text: `The dashboard could not load: ${error.message}` }));
+  }
 }
 
 /* ---------- welcome panel ---------- */
@@ -699,6 +767,7 @@ map.on("load", async () => {
   renderDock();
   applyToggles();
   fillWelcome();
+  loadDashboard();
 
   // Deep link: #lat,lon,name
   const parts = decodeURIComponent(location.hash.slice(1)).split(",");

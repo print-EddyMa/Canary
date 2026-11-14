@@ -1,6 +1,6 @@
 /* The place dossier: what Canary knows about one point, in three tabs. */
 
-import { lineChart } from "./charts.js";
+import { lineChart, outlookChart } from "./charts.js";
 import {
   el, sig, signed, fixed, signedFixed, pText, pEquals, together, thousands, compass, statusIcon, MINUS,
 } from "./util.js";
@@ -141,6 +141,8 @@ function vitalCard(v) {
       : `Stability check: no sign of lost stability (memory trend τ = ${signedFixed(ew.tau_ar1, 2)}, ${pEquals(ew.p_ar1)}).` }));
   }
 
+  if (v.forecast) card.append(outlookDetails(v));
+
   const listenButton = el("button", { type: "button", text: "Listen" });
   listenButton.addEventListener("click", () => listen(v.annual_anomaly, listenButton));
   card.append(el("div", { class: "vital-actions" }, listenButton));
@@ -181,6 +183,43 @@ function vitalCard(v) {
   return card;
 }
 
+const MONTH = ["Jan", "Feb", "Mar", "Apr", "May", "Jun", "Jul", "Aug", "Sep", "Oct", "Nov", "Dec"];
+
+function outlookDetails(v) {
+  const f = v.forecast;
+  const d = v.decimals;
+  const skilled = f.skill > 0;
+  const details = el("details", { class: "outlook" }, el("summary", {},
+    skilled ? `Outlook to ${f.years[f.years.length - 1]}: ${Math.round(100 * f.skill)}% better than assuming a normal year`
+      : `Outlook to ${f.years[f.years.length - 1]}: a normal year (nothing tested did better)`));
+  details.addEventListener("toggle", () => {
+    if (!details.open || details.querySelector(".plot")) return;
+    const dec = (years, months) => years.map((y, i) => y + (months[i] - 0.5) / 12);
+    const vs = f.next_year_vs_normal;
+    details.append(
+      el("div", { class: "legend" },
+        el("span", {}, el("i"), "Observed"),
+        el("span", {}, el("i", { class: "trend" }), "Outlook"),
+        el("span", {}, el("i", { class: "band-key" }), "80% range")),
+      outlookChart({
+        observed: { t: dec(f.recent.years, f.recent.months), y: f.recent.values },
+        outlook: { t: dec(f.years, f.months), y: f.median, low: f.low, high: f.high },
+        unit: v.unit, decimals: d, monthName: (m) => MONTH[m - 1],
+        label: `${v.label}: monthly values for five years and the outlook for the following two`,
+      }),
+      el("p", { class: "vital-extra" },
+        el("strong", { text: `${f.years[0]} is expected to average ${fixed(f.next_year_mean, d)} ${v.unit}` }),
+        ` (80% range ${fixed(f.next_year_range[0], d)} to ${fixed(f.next_year_range[1], d)}), `
+        + `${signedFixed(vs, d)} against the 1991\u20132020 average. ${f.summary}`),
+      el("p", { class: "plot-caption",
+        text: `Method: ${f.method_label}. Chosen because it had the lowest error when forecasting from `
+          + `${f.backtest_origins.length} past start dates (${f.backtest_origins[0]}\u2013${f.backtest_origins[f.backtest_origins.length - 1]}). `
+          + (f.coverage == null ? "" : `The 80% range held ${Math.round(100 * f.coverage)}% of the outcomes it was not fitted to. `)
+          + "The record ends in December 2025, so the outlook starts there." }));
+  });
+  return details;
+}
+
 export function vitalsTab(data) {
   const order = { extreme: 0, emerged: 1, shifting: 2, stable: 3 };
   const vitals = [...data.vitals].sort((a, b) =>
@@ -195,6 +234,7 @@ export function vitalsTab(data) {
         el("li", { text: `Trend: ${data.methods.trend}` }),
         el("li", { text: `Stability check: ${data.methods.early_warning}` }),
         el("li", { text: `Suspects: ${data.methods.suspects}` }),
+        el("li", { text: `Outlook: ${data.methods.forecast}` }),
         ...data.methods.caveats.map((text) => el("li", { text })))),
   ];
 }

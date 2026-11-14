@@ -11,12 +11,18 @@ dependencies = [
     "httpx>=0.27",
     "numba>=0.60",
     "pillow>=10",
+    "anthropic>=1.0",
 ]
 
 [project.optional-dependencies]
 dev = [
     "pytest>=8",
     "pymannkendall>=1.4.3",
+]
+# Adds a pretrained forecasting model (Amazon Chronos-Bolt, runs on CPU) to the backtest.
+forecast = [
+    "torch>=2.2",
+    "chronos-forecasting>=2.0",
 ]
 # Only needed to recompute the global trend maps (python -m canary.globalmap).
 maps = [
