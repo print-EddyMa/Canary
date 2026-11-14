@@ -357,7 +357,7 @@ function renderDock() {
     sections.push(section("analysis", "Canary analysis, 1981–2025", true,
       pick(null, "None", "Show the globe without a data overlay"),
       pick({ type: "alarm" }, "Alarm map", "How many vital signs have left their normal range"),
-      ...maps.layers.map((l) => pick({ type: "trend", id: l.id }, `${l.label} trend`, l.definition))));
+      ...maps.layers.filter((l) => l.vital).map((l) => pick({ type: "trend", id: l.id }, `${l.label} trend`, l.definition))));
   }
   sections.push(section("live", "Happening now", true,
     check(state.wind, "Wind (live, animated)", "Wind from NASA's GEOS weather analysis", (v) => { state.wind = v; applyToggles(); }),

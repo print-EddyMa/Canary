@@ -5,6 +5,7 @@ Run with:  uvicorn canary.api:app --reload
 
 from __future__ import annotations
 
+from contextlib import asynccontextmanager
 from functools import lru_cache
 from pathlib import Path
 
@@ -17,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 import json
 
-from . import __version__, briefing, detective, llm, terrain
+from . import __version__, briefing, catalogue, cube, detective, investigate, llm, regions, terrain
 from .chart import place_chart
 from .sources import events, geos, gibs, indices
 from .sources.cache import cached_text
@@ -27,8 +28,85 @@ from .vitals import VITALS
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 GEOCODER = "https://geocoding-api.open-meteo.com/v1/search"
 
-app = FastAPI(title="Canary", version=__version__)
+@asynccontextmanager
+async def _lifespan(_: FastAPI):
+    # Fetch any global grids not on disk yet, without holding up the first page.
+    cube.warm_in_background()
+    yield
+
+
+app = FastAPI(title="Canary", version=__version__, lifespan=_lifespan)
 app.add_middleware(GZipMiddleware, minimum_size=2000)
+
+
+@app.get("/api/catalogue")
+def variable_catalogue() -> dict:
+    """Variables, themes, regions and the guide's questions."""
+    return {
+        "themes": [{"id": t[0], "name": t[1], "about": t[2]} for t in catalogue.THEMES],
+        "variables": [{"id": v.id, "label": v.label, "unit": v.unit, "theme": v.theme, "definition": v.definition,
+                       "source": v.source, "parameter": v.parameter, "ready": cube.ready(v.id),
+                       "record_from": v.start_year or 1981} for v in catalogue.VARIABLES],
+        "regions": regions.catalogue(),
+        "interests": [{"id": k, "question": q} for k, (q, _) in catalogue.INTERESTS.items()],
+        "place_kinds": [{"id": k, "name": name} for k, (name, _, _) in catalogue.PLACE_KINDS.items()],
+    }
+
+
+@app.get("/api/countries")
+def country_outlines() -> dict:
+    """Country outlines (Natural Earth 1:110m) for the region map."""
+    try:
+        return regions.countries_geojson()
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"Country outlines did not load: {exc}") from exc
+
+
+@lru_cache(maxsize=512)
+def _investigate(variable: str, region: str, start: int | None, end: int | None) -> dict:
+    return investigate.analyse(variable, region, start, end)
+
+
+@app.get("/api/investigate")
+def investigate_region(
+    variable: str = Query(..., max_length=40),
+    region: str = Query("world", max_length=80),
+    start: int | None = Query(None, ge=1981, le=2025),
+    end: int | None = Query(None, ge=1981, le=2025),
+) -> dict:
+    """What is changing, how much, and is it significant: one variable, one region."""
+    try:
+        return _investigate(variable, region, start, end)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"A data source did not answer: {exc}") from exc
+
+
+@lru_cache(maxsize=128)
+def _scan(region: str, start: int | None, end: int | None, ready_count: int) -> dict:
+    return investigate.scan(region, start, end)
+
+
+@app.get("/api/scan")
+def scan_region(
+    region: str = Query("world", max_length=80),
+    start: int | None = Query(None, ge=1981, le=2025),
+    end: int | None = Query(None, ge=1981, le=2025),
+) -> dict:
+    """Every variable tested in one region, ranked: which are trending here?"""
+    try:
+        ready = sum(cube.ready(v.id) for v in catalogue.VARIABLES)  # part of the cache key while grids arrive
+        return _scan(region, start, end, ready)
+    except ValueError as exc:
+        raise HTTPException(422, str(exc)) from exc
+
+
+@app.get("/api/suggest")
+def suggest_variables(interest: str | None = Query(None, max_length=20),
+                      place: str | None = Query(None, max_length=20)) -> list[dict]:
+    """The guide: variables worth a first look for an interest and a kind of place."""
+    return investigate.suggest(interest, place)
 
 
 @lru_cache(maxsize=512)

@@ -1,6 +1,6 @@
 """Global trend maps: where on Earth is each vital sign changing?
 
-Reads NASA POWER's global annual grids (public Zarr stores on AWS, no login),
+Takes NASA POWER's global annual grids (see cube.py) for every catalogue variable,
 runs the same trend test as the place charts on every grid cell, controls the
 false discovery rate across the whole map (Wilks 2016), and writes one
 Web-Mercator PNG per vital sign plus a JSON index for the front end.
@@ -26,21 +26,10 @@ from scipy import stats
 from .vitals import VITALS
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "web" / "maps"
-STORES = {
-    "merra2": "nasa-power/merra2/temporal/power_merra2_annual_temporal_utc.zarr",
-    "syn1deg": "nasa-power/syn1deg/temporal/power_syn1deg_annual_temporal_utc.zarr",
-}
-STORE_OF = {"ALLSKY_SFC_SW_DWN": "syn1deg", "CLOUD_AMT": "syn1deg", "AOD_55": "syn1deg"}
-# The Zarr stores keep native units; convert to the units the place charts use.
-UNIT_FACTOR = {"ALLSKY_SFC_SW_DWN": 0.0864}  # W/m2 -> MJ/m2/day
-LAST_YEAR = 2025
 MIN_YEARS = 20
 FDR = 0.05
 IMAGE_SIZE = 1152  # pixels per side of the Web-Mercator image
 MERCATOR_MAX_LAT = 85.051129
-
-# Which direction is drawn red (warmer / drier / dustier); the other is blue.
-RED_WHEN_RISING = {"temperature", "wind", "sunlight", "haze"}
 
 
 @njit(cache=True)
@@ -219,44 +208,29 @@ def _nice(x: float) -> float:
 
 
 def build(out_dir: Path = OUT_DIR) -> dict:
-    import s3fs
-    import xarray as xr
     from PIL import Image
 
+    from . import cube
+    from .catalogue import VARIABLES
+
     out_dir.mkdir(parents=True, exist_ok=True)
-    fs = s3fs.S3FileSystem(anon=True)
-    stores = {k: xr.open_zarr(fs.get_mapper(p), consolidated=True) for k, p in STORES.items()}
-    base = stores["merra2"]
-    base_lats, base_lons = base.lat.values, base.lon.values
+    vital_ids = {v.id for v in VITALS}
+    base = cube.load("temperature")
+    base_lats, base_lons = base.lats, base.lons
 
     layers = []
     emerged_count = np.zeros((base_lats.size, base_lons.size), dtype=np.int16)
     tested_count = np.zeros_like(emerged_count)
 
-    for vital in VITALS:
+    for variable in VARIABLES:
         t0 = time.time()
-        ds = stores[STORE_OF.get(vital.parameter, "merra2")]
-        da = ds[vital.parameter]
-        years_all = da.time.dt.year.values
-        keep = years_all <= LAST_YEAR
-        if vital.start_year:
-            keep &= years_all >= vital.start_year
-        cube = da.isel(time=np.flatnonzero(keep)).load().values.astype(np.float64)
-        years = years_all[keep].astype(np.float64)
-        cube[cube <= -900] = np.nan
-        cube *= UNIT_FACTOR.get(vital.parameter, 1.0)
-        has_data = np.isfinite(cube).any(axis=(1, 2))
-        cube, years = cube[has_data], years[has_data]
-        lats, lons = ds.lat.values, ds.lon.values
-        if vital.skip_if_flat:
-            # e.g. snow: ignore cells where there is essentially none.
-            with np.errstate(all="ignore"):
-                cube[:, np.nan_to_num(np.nanmean(cube, axis=0)) < 1.0] = np.nan
-
-        flat = np.ascontiguousarray(cube.reshape(cube.shape[0], -1).T)
+        c = cube.load(variable.id)
+        years = c.years.astype(np.float64)
+        lats, lons = c.lats, c.lons
+        shape = c.data.shape[1:]
+        flat = np.ascontiguousarray(np.asarray(c.data, dtype=np.float64).reshape(years.size, -1).T)
         slope, p, snr = trend_grid(flat, years, MIN_YEARS)
         p_fdr = fdr_grid(p)
-        shape = cube.shape[1:]
         slope, p_fdr, snr = (a.reshape(shape) for a in (slope, p_fdr, snr))
         per_decade = slope * 10
         significant = p_fdr < FDR
@@ -265,28 +239,31 @@ def build(out_dir: Path = OUT_DIR) -> dict:
         w = _area_weights(lats, shape)
         area = float(w[valid].sum())
         vmax = _nice(float(np.nanpercentile(np.abs(per_decade[valid]), 98)))
-        red_pos = vital.id in RED_WHEN_RISING
+        red_pos = variable.red_when_rising
         rgba = to_mercator(diverging_rgba(per_decade, vmax, significant, red_pos), lats, lons)
-        Image.fromarray(rgba, "RGBA").save(out_dir / f"trend_{vital.id}.png", optimize=True)
+        Image.fromarray(rgba, "RGBA").save(out_dir / f"trend_{variable.id}.png", optimize=True)
 
-        # Contribute to the alarm map on the common grid.
-        emerged = significant & (snr >= 1)
-        if shape != emerged_count.shape:
-            ri = np.clip(np.round((base_lats - lats[0]) / (lats[1] - lats[0])).astype(int), 0, lats.size - 1)
-            ci = np.round((base_lons - lons[0]) / (lons[1] - lons[0])).astype(int) % lons.size
-            emerged, valid_b = emerged[np.ix_(ri, ci)], valid[np.ix_(ri, ci)]
-        else:
-            valid_b = valid
-        emerged_count += emerged
-        tested_count += valid_b
+        # The alarm map counts the ten vital signs only.
+        if variable.id in vital_ids:
+            emerged = significant & (snr >= 1)
+            if shape != emerged_count.shape:
+                ri = np.clip(np.round((base_lats - lats[0]) / (lats[1] - lats[0])).astype(int), 0, lats.size - 1)
+                ci = np.round((base_lons - lons[0]) / (lons[1] - lons[0])).astype(int) % lons.size
+                emerged, valid_b = emerged[np.ix_(ri, ci)], valid[np.ix_(ri, ci)]
+            else:
+                valid_b = valid
+            emerged_count += emerged
+            tested_count += valid_b
 
         layers.append({
-            "id": vital.id,
-            "label": vital.label,
-            "unit": vital.unit,
-            "definition": vital.definition,
-            "source": vital.source,
-            "image": f"maps/trend_{vital.id}.png",
+            "id": variable.id,
+            "label": variable.label,
+            "unit": variable.unit,
+            "theme": variable.theme,
+            "vital": variable.id in vital_ids,
+            "definition": variable.definition,
+            "source": variable.source,
+            "image": f"maps/trend_{variable.id}.png",
             "period": [int(years[0]), int(years[-1])],
             "scale_max": vmax,
             "red_when_rising": red_pos,
@@ -294,10 +271,10 @@ def build(out_dir: Path = OUT_DIR) -> dict:
             "percent_rising": round(100 * float(w[valid & significant & (per_decade > 0)].sum()) / area, 1),
             "percent_falling": round(100 * float(w[valid & significant & (per_decade < 0)].sum()) / area, 1),
             "percent_emerged": round(100 * float(w[valid & significant & (snr >= 1)].sum()) / area, 1),
-            "mean_trend_per_decade": float(np.nansum(per_decade * w * valid) / area),
+            "mean_trend_per_decade": float(np.nansum(np.where(valid, per_decade, 0.0) * w) / area),
             "cells_tested": int(valid.sum()),
         })
-        print(f"{vital.id:14s} {years[0]:.0f}-{years[-1]:.0f} cells={valid.sum():6d} "
+        print(f"{variable.id:20s} {years[0]:.0f}-{years[-1]:.0f} cells={valid.sum():6d} "
               f"sig={layers[-1]['percent_significant']:5.1f}% scale=±{vmax:g} ({time.time() - t0:.1f}s)", flush=True)
 
     # Alarm map: how many vital signs have left their normal range in each cell.
