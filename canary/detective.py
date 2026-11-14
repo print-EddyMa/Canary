@@ -496,7 +496,8 @@ def rule_case(case: Case) -> tuple[dict, dict]:
                                       "this event.",
                            "fix": "The case file reports the event and the background side by side without linking them."})
     if on_site:
-        outside = f"{len(changed)} vital sign{'s' if len(changed) != 1 else ''} outside the normal range"
+        outside = (f"{len(changed)} vital sign{'s' if len(changed) != 1 else ''} outside the normal range"
+                   if changed else "no vital sign outside its normal range")
         headline = f"{on_site['event']}: {on_site['size']}; the long record at this location shows {outside}"
     elif lead:
         headline = (f"{place}: {lead['vital_sign'].lower()} has {'risen' if lead['direction'] == 'rising' else 'fallen'} "
