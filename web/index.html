@@ -8,7 +8,7 @@
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
-  <div id="map" aria-label="Globe. Click anywhere to read that place's vital signs."></div>
+  <div id="map" aria-label="Globe. Click anywhere to open that place's dossier."></div>
 
   <header class="topbar">
     <div class="brand">
@@ -22,18 +22,43 @@
     </form>
   </header>
 
-  <aside id="panel" class="panel" aria-live="polite">
+  <nav id="dock" class="dock" aria-label="Map layers">
+    <button id="dock-toggle" class="dock-toggle" type="button" aria-expanded="true" aria-controls="dock-body">
+      <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M8 1 15 4.5 8 8 1 4.5Zm-5.2 6L8 9.6 13.2 7 15 7.9 8 11.4 1 7.9Zm0 3.4L8 13 13.2 10.4 15 11.3 8 14.8 1 11.3Z" fill="currentColor"/></svg>
+      Layers
+    </button>
+    <div id="dock-body" class="dock-body"></div>
+  </nav>
+
+  <section id="legend" class="legend-card" aria-live="polite" hidden></section>
+  <div id="hud" class="hud" aria-hidden="true"></div>
+
+  <aside id="panel" class="panel">
     <section id="welcome" class="welcome">
       <h1>How is this place doing?</h1>
-      <p>Click anywhere on the globe, or search for a place, to read up to ten vital
-        signs from NASA records going back to 1981. Canary tells you what is changing,
-        by how much, and whether the change is more than chance.</p>
-      <h2>Try a case</h2>
+      <p>Click anywhere on the globe, or search for a place. Canary reads up to ten vital signs
+        from NASA records since 1981 and tells you what is changing, by how much, and whether
+        it is more than chance. It also shows the shape of the land, where the rain that falls
+        there ends up, and what is happening right now.</p>
+      <h2>Look at the whole planet</h2>
+      <ul id="views" class="demos"></ul>
+      <h2>Open a case</h2>
       <ul id="demos" class="demos"></ul>
-      <p class="fine">Data: NASA POWER (MERRA-2 reanalysis and CERES satellite record), NOAA climate
-        indices. Imagery: NASA GIBS Blue Marble.</p>
+      <p class="fine">Data: NASA POWER (MERRA-2 reanalysis, CERES), NASA GIBS imagery, NASA GEOS-FP
+        weather analysis, NASA EONET events, USGS earthquakes, NOAA climate indices, Terrain Tiles
+        (NASA SRTM and others), Natural Earth rivers.</p>
     </section>
-    <section id="chart" hidden></section>
+    <section id="place" hidden>
+      <div id="place-head"></div>
+      <div class="tabs" role="tablist">
+        <button role="tab" id="tab-vitals" aria-controls="pane-vitals" aria-selected="true" type="button">Vital signs</button>
+        <button role="tab" id="tab-terrain" aria-controls="pane-terrain" aria-selected="false" type="button">Land and water</button>
+        <button role="tab" id="tab-now" aria-controls="pane-now" aria-selected="false" type="button">Right now</button>
+      </div>
+      <div id="pane-vitals" role="tabpanel" aria-labelledby="tab-vitals"></div>
+      <div id="pane-terrain" role="tabpanel" aria-labelledby="tab-terrain" hidden></div>
+      <div id="pane-now" role="tabpanel" aria-labelledby="tab-now" hidden></div>
+    </section>
   </aside>
 
   <script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>

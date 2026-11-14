@@ -313,6 +313,7 @@ def build(out_dir: Path = OUT_DIR) -> dict:
         "generated": time.strftime("%Y-%m-%d"),
         "false_discovery_rate": FDR,
         "bounds": [-180, -MERCATOR_MAX_LAT, 180, MERCATOR_MAX_LAT],
+        "colors": {"blue_arm": BLUE_ARM, "red_arm": RED_ARM, "alarm": ALARM_RAMP},
         "method": "Calendar-year means per grid cell; Theil-Sen slope; Mann-Kendall test with "
                   "autocorrelation correction; Benjamini-Hochberg false-discovery control across "
                   "all cells of each map. Faint cells have a trend that could be chance.",

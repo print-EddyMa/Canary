@@ -7,6 +7,26 @@
   180,
   85.051129
  ],
+ "colors": {
+  "blue_arm": [
+   "#4a4a46",
+   "#256abf",
+   "#3987e5",
+   "#9ec5f4"
+  ],
+  "red_arm": [
+   "#4a4a46",
+   "#b83a35",
+   "#e66767",
+   "#ffc2b8"
+  ],
+  "alarm": [
+   "#4d3a0c",
+   "#b37a00",
+   "#fab219",
+   "#fff0b8"
+  ]
+ },
  "method": "Calendar-year means per grid cell; Theil-Sen slope; Mann-Kendall test with autocorrelation correction; Benjamini-Hochberg false-discovery control across all cells of each map. Faint cells have a trend that could be chance.",
  "alarm": {
   "image": "maps/alarm.png",

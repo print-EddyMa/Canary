@@ -158,22 +158,25 @@ def _add_suspects(vitals: list[dict]) -> None:
 
 CONDITIONS = {
     "stable": "Stable: no vital sign shows a trend distinguishable from chance.",
-    "watch": "Watch: at least one vital sign has a trend that is unlikely to be chance.",
-    "serious": "Serious: at least two vital signs have moved outside their ordinary year-to-year range.",
-    "critical": "Critical: at least half of the vital signs have moved outside their ordinary range, "
-                "or one shows signs of losing stability.",
+    "watch": "Watch: at least one vital sign has a trend unlikely to be chance, or shows an "
+             "early-warning sign of lost stability.",
+    "serious": "Serious: at least two vital signs have moved outside their ordinary year-to-year range, "
+               "or one has and another shows an early-warning sign.",
+    "critical": "Critical: at least half of the vital signs have moved outside their ordinary range.",
 }
 
 
 def _condition(vitals: list[dict]) -> dict:
     statuses = [v["status"] for v in vitals]
     emerged = sum(s in ("emerged", "extreme") for s in statuses)
+    # An early-warning flag is expected by chance in about 1 place in 20, so
+    # on its own it raises the level to "watch", never straight to "critical".
     warnings = sum(bool(v["early_warning"] and v["early_warning"]["warning"]) for v in vitals)
-    if warnings or (emerged >= 2 and emerged * 2 >= len(vitals)):
+    if emerged >= 2 and emerged * 2 >= len(vitals):
         level = "critical"
-    elif emerged >= 2:
+    elif emerged >= 2 or (emerged and warnings):
         level = "serious"
-    elif any(s != "stable" for s in statuses):
+    elif warnings or any(s != "stable" for s in statuses):
         level = "watch"
     else:
         level = "stable"

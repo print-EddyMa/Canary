@@ -38,6 +38,10 @@ PICKS: tuple[Pick, ...] = (
          "What a satellite actually saw on the chosen day: clouds, smoke, dust, snow and all.", "VIIRS, NOAA-20", "base"),
     Pick("night", "VIIRS_Black_Marble", "Night lights", "Globe",
          "City lights at night, a map of where people and electricity are.", "VIIRS Black Marble 2016", "base"),
+    Pick("landsat", "Landsat_WELD_CorrectedReflectance_TrueColor_Global_Annual", "Landsat close-up (30 m)", "Globe",
+         "A cloud-free mosaic sharp enough to see valleys, fields and towns. Best zoomed in.", "Landsat WELD, 2000", "base"),
+    Pick("relief", "ASTER_GDEM_Color_Shaded_Relief", "Shaded relief", "Globe",
+         "The shape of the land alone: elevation in colour with shadows, no vegetation or cloud.", "ASTER GDEM", "base"),
     # Water and weather
     Pick("rain", "IMERG_Precipitation_Rate", "Rain and snowfall", "Water and weather",
          "Precipitation rate measured from space by a constellation of satellites.", "GPM IMERG"),
