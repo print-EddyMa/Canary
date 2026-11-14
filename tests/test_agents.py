@@ -185,3 +185,35 @@ def test_daily_brief_maps_items_to_events(monkeypatch):
     assert items[0] == {"topic": "Storm", "text": "A typhoon.", "lat": 30.2, "lon": 154.1}
     assert "lat" not in items[1]
     assert "series" not in client.requests[0]["messages"][0]["content"]
+
+
+def test_api_falls_back_to_rules_without_caching_the_failure(monkeypatch, tmp_path):
+    from fastapi.testclient import TestClient
+
+    from canary import api
+    from canary.sources import cache
+
+    monkeypatch.setattr(cache, "CACHE_DIR", tmp_path)
+    monkeypatch.setattr(llm, "available", lambda: True)
+    calls = {"ai": 0}
+
+    def failing(lat, lon, name=None):
+        calls["ai"] += 1
+        raise llm.Refused("declined")
+
+    stub = {"written_by": "rules", "author": "rules", "case": {"findings": []}, "skeptic": {"objections": []},
+            "evidence": [], "checks": {"numbers_checked": 0, "numbers_traced": 0, "untraced": []}}
+    monkeypatch.setattr(llm, "investigate", failing)
+    monkeypatch.setattr(detective, "investigate", lambda lat, lon, name=None: dict(stub))
+    client = TestClient(api.app)
+
+    first = client.get("/api/case", params={"lat": 10, "lon": 20}).json()
+    assert first["written_by"] == "rules" and "declined" in first["ai_error"]
+    client.get("/api/case", params={"lat": 10, "lon": 20})
+    assert calls["ai"] == 2  # the failure was not cached: the AI was tried again
+    assert not list(tmp_path.glob("cases/ai_*"))
+
+
+def test_explain_gives_actionable_messages():
+    assert "declined" in llm.explain(llm.Refused("declined"))
+    assert llm.explain(RuntimeError("x" * 500)).__len__() == 200

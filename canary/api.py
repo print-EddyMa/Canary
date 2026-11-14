@@ -8,6 +8,7 @@ from __future__ import annotations
 from functools import lru_cache
 from pathlib import Path
 
+import anthropic
 import httpx
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.gzip import GZipMiddleware
@@ -155,7 +156,7 @@ def world_briefing(ai: bool = Query(True)) -> dict:
             text = cached_text("brief", key, lambda: json.dumps(llm.daily_brief(result)), max_age_days=1)
             result["brief"], result["brief_written_by"] = json.loads(text), "ai"
         except Exception as exc:  # noqa: BLE001 - fall back to the rule-written brief
-            result["brief_error"] = str(exc)
+            result["brief_error"] = llm.explain(exc)
     return result
 
 
@@ -174,17 +175,18 @@ def case_file(
     key = f"{'ai' if use_ai else 'rules'}_{lat:+.2f}_{lon:+.2f}.json"
 
     def build() -> str:
-        if use_ai:
-            try:
-                return json.dumps(llm.investigate(lat, lon, name))
-            except Exception as exc:  # noqa: BLE001 - a failed AI run still owes the reader a case file
-                fallback = detective.investigate(lat, lon, name)
-                fallback["ai_error"] = f"The AI detective could not finish ({exc}); this case was written by rules."
-                return json.dumps(fallback)
-        return json.dumps(detective.investigate(lat, lon, name))
+        return json.dumps(llm.investigate(lat, lon, name) if use_ai else detective.investigate(lat, lon, name))
 
     try:
-        result = json.loads(cached_text("cases", key, build, max_age_days=1))
+        try:
+            result = json.loads(cached_text("cases", key, build, max_age_days=1))
+        except (anthropic.AnthropicError, llm.Refused, RuntimeError, ValueError) as exc:
+            if not use_ai:
+                raise
+            # A failed AI run still owes the reader a case file. It is not cached,
+            # so the next request tries the AI again.
+            result = detective.investigate(lat, lon, name)
+            result["ai_error"] = f"The AI detective could not finish ({llm.explain(exc)}), so this case was written by rules."
     except httpx.HTTPError as exc:
         raise HTTPException(502, f"A data source did not answer: {exc}") from exc
     result["ai_available"] = llm.available()

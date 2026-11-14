@@ -218,6 +218,25 @@ class Refused(RuntimeError):
     """The model declined the request."""
 
 
+def explain(exc: Exception) -> str:
+    """A failure of the Claude API in words a reader can act on."""
+    if isinstance(exc, anthropic.AuthenticationError):
+        return "the API key was rejected; check ANTHROPIC_API_KEY"
+    if isinstance(exc, anthropic.PermissionDeniedError):
+        return "the API key is not allowed to use this model"
+    if isinstance(exc, anthropic.NotFoundError):
+        return f"the model {MODEL} was not found for this account"
+    if isinstance(exc, anthropic.RateLimitError):
+        return "the API rate limit was reached; try again shortly"
+    if isinstance(exc, anthropic.APIStatusError):
+        return f"the API returned an error ({exc.status_code})"
+    if isinstance(exc, anthropic.APIConnectionError):
+        return "the API could not be reached"
+    if isinstance(exc, Refused):
+        return f"the model declined the request: {exc}"
+    return str(exc)[:200]
+
+
 def _call(client: anthropic.Anthropic, *, system: str, messages: list, schema: dict | None = None,
           tools: list | None = None):
     output_config: dict = {"effort": EFFORT}
