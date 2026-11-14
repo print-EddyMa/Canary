@@ -1,0 +1,219 @@
+{
+ "generated": "2026-11-14",
+ "false_discovery_rate": 0.05,
+ "bounds": [
+  -180,
+  -85.051129,
+  180,
+  85.051129
+ ],
+ "method": "Calendar-year means per grid cell; Theil-Sen slope; Mann-Kendall test with autocorrelation correction; Benjamini-Hochberg false-discovery control across all cells of each map. Faint cells have a trend that could be chance.",
+ "alarm": {
+  "image": "maps/alarm.png",
+  "scale_max": 6,
+  "percent_any": 79.7,
+  "percent_three_plus": 21.5
+ },
+ "layers": [
+  {
+   "id": "temperature",
+   "label": "Air temperature",
+   "unit": "\u00b0C",
+   "definition": "Average air temperature two metres above the ground.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "image": "maps/trend_temperature.png",
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 1.0,
+   "red_when_rising": true,
+   "percent_significant": 58.9,
+   "percent_rising": 56.5,
+   "percent_falling": 2.4,
+   "percent_emerged": 58.9,
+   "mean_trend_per_decade": 0.17181537034475086,
+   "cells_tested": 207936
+  },
+  {
+   "id": "precipitation",
+   "label": "Precipitation",
+   "unit": "mm/day",
+   "definition": "Average rain and snowfall per day, corrected against rain gauges.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "image": "maps/trend_precipitation.png",
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.5,
+   "red_when_rising": false,
+   "percent_significant": 13.4,
+   "percent_rising": 6.7,
+   "percent_falling": 6.8,
+   "percent_emerged": 13.2,
+   "mean_trend_per_decade": -0.022376746732762,
+   "cells_tested": 207936
+  },
+  {
+   "id": "soil_wetness",
+   "label": "Root-zone soil wetness",
+   "unit": "fraction",
+   "definition": "How full of water the top metre of soil is, where plant roots drink: 0 is completely dry, 1 is saturated.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "image": "maps/trend_soil_wetness.png",
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.05,
+   "red_when_rising": false,
+   "percent_significant": 7.8,
+   "percent_rising": 4.4,
+   "percent_falling": 3.4,
+   "percent_emerged": 7.7,
+   "mean_trend_per_decade": 0.0010075628530902506,
+   "cells_tested": 58488
+  },
+  {
+   "id": "evaporation",
+   "label": "Evaporation from land",
+   "unit": "mm/day",
+   "definition": "Water returned to the air from soil and plants each day.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "image": "maps/trend_evaporation.png",
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.5,
+   "red_when_rising": false,
+   "percent_significant": 11.7,
+   "percent_rising": 6.7,
+   "percent_falling": 5.0,
+   "percent_emerged": 11.6,
+   "mean_trend_per_decade": 0.00033436841024416306,
+   "cells_tested": 58876
+  },
+  {
+   "id": "humidity",
+   "label": "Moisture in the air",
+   "unit": "g/kg",
+   "definition": "Grams of water vapour in each kilogram of air near the ground (specific humidity).",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "image": "maps/trend_humidity.png",
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.5,
+   "red_when_rising": false,
+   "percent_significant": 60.5,
+   "percent_rising": 58.5,
+   "percent_falling": 2.0,
+   "percent_emerged": 60.5,
+   "mean_trend_per_decade": 0.11891197920436104,
+   "cells_tested": 207936
+  },
+  {
+   "id": "wind",
+   "label": "Wind speed",
+   "unit": "m/s",
+   "definition": "Average wind speed ten metres above the ground.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "image": "maps/trend_wind.png",
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.2,
+   "red_when_rising": true,
+   "percent_significant": 6.4,
+   "percent_rising": 3.3,
+   "percent_falling": 3.1,
+   "percent_emerged": 6.4,
+   "mean_trend_per_decade": 0.013779739710285566,
+   "cells_tested": 207936
+  },
+  {
+   "id": "sunlight",
+   "label": "Sunlight reaching the ground",
+   "unit": "MJ/m\u00b2/day",
+   "definition": "Solar energy arriving at the surface each day, after clouds and haze.",
+   "source": "NASA POWER (CERES SYN1deg satellite record)",
+   "image": "maps/trend_sunlight.png",
+   "period": [
+    2001,
+    2025
+   ],
+   "scale_max": 0.5,
+   "red_when_rising": true,
+   "percent_significant": 2.6,
+   "percent_rising": 0.6,
+   "percent_falling": 2.0,
+   "percent_emerged": 2.6,
+   "mean_trend_per_decade": 0.021388603986837097,
+   "cells_tested": 64800
+  },
+  {
+   "id": "cloud",
+   "label": "Cloud cover",
+   "unit": "%",
+   "definition": "Share of the sky covered by cloud, averaged over the month.",
+   "source": "NASA POWER (CERES SYN1deg satellite record)",
+   "image": "maps/trend_cloud.png",
+   "period": [
+    2001,
+    2025
+   ],
+   "scale_max": 10,
+   "red_when_rising": false,
+   "percent_significant": 13.2,
+   "percent_rising": 0.9,
+   "percent_falling": 12.3,
+   "percent_emerged": 13.2,
+   "mean_trend_per_decade": -1.08596434094772,
+   "cells_tested": 64800
+  },
+  {
+   "id": "snow",
+   "label": "Snow depth",
+   "unit": "cm",
+   "definition": "Average depth of snow lying on the ground.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "image": "maps/trend_snow.png",
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 5,
+   "red_when_rising": false,
+   "percent_significant": 5.5,
+   "percent_rising": 0.6,
+   "percent_falling": 4.8,
+   "percent_emerged": 5.4,
+   "mean_trend_per_decade": -0.30239681556095843,
+   "cells_tested": 33461
+  },
+  {
+   "id": "haze",
+   "label": "Haze (aerosols)",
+   "unit": "optical depth",
+   "definition": "How much dust, smoke and pollution is suspended in the air column, measured by how strongly it dims light (aerosol optical depth at 550 nm).",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "image": "maps/trend_haze.png",
+   "period": [
+    2001,
+    2025
+   ],
+   "scale_max": 0.05,
+   "red_when_rising": true,
+   "percent_significant": 7.5,
+   "percent_rising": 3.5,
+   "percent_falling": 4.1,
+   "percent_emerged": 7.5,
+   "mean_trend_per_decade": -0.0003880384960333652,
+   "cells_tested": 59332
+  }
+ ]
+}

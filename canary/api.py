@@ -10,18 +10,20 @@ from pathlib import Path
 
 import httpx
 from fastapi import FastAPI, HTTPException, Query
+from fastapi.middleware.gzip import GZipMiddleware
 from fastapi.responses import FileResponse
 from fastapi.staticfiles import StaticFiles
 
-from . import __version__
+from . import __version__, terrain
 from .chart import place_chart
-from .sources import indices
+from .sources import events, geos, gibs, indices
 from .vitals import VITALS
 
 WEB_DIR = Path(__file__).resolve().parent.parent / "web"
 GEOCODER = "https://geocoding-api.open-meteo.com/v1/search"
 
 app = FastAPI(title="Canary", version=__version__)
+app.add_middleware(GZipMiddleware, minimum_size=2000)
 
 
 @lru_cache(maxsize=512)
@@ -74,6 +76,59 @@ def vitals() -> dict:
             for m in indices.MODES
         ],
     }
+
+
+@app.get("/api/layers")
+def layers() -> list[dict]:
+    """Curated NASA GIBS satellite layers with live dates and legends."""
+    try:
+        return gibs.catalogue()
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"NASA GIBS did not answer: {exc}") from exc
+
+
+@app.get("/api/wind")
+def wind() -> dict:
+    """Latest global wind, temperature and pressure grid from NASA GEOS."""
+    try:
+        return geos.wind_grid()
+    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        raise HTTPException(502, f"NASA GEOS did not answer: {exc}") from exc
+
+
+@app.get("/api/now")
+def now(
+    lat: float = Query(..., ge=-90, le=90),
+    lon: float = Query(..., ge=-180, le=180),
+) -> dict:
+    """Current conditions at a point, from the NASA GEOS analysis."""
+    try:
+        return geos.sample(lat, lon)
+    except (httpx.HTTPError, ValueError, KeyError) as exc:
+        raise HTTPException(502, f"NASA GEOS did not answer: {exc}") from exc
+
+
+@app.get("/api/events")
+def current_events() -> dict:
+    """Open natural events (NASA EONET) and recent earthquakes (USGS) as GeoJSON."""
+    return events.current()
+
+
+@lru_cache(maxsize=256)
+def _terrain(lat: float, lon: float) -> dict:
+    return terrain.analyse(lat, lon)
+
+
+@app.get("/api/terrain")
+def terrain_at(
+    lat: float = Query(..., ge=-85, le=85),
+    lon: float = Query(..., ge=-180, le=180),
+) -> dict:
+    """Terrain shape, local stream network and the raindrop's path from a point."""
+    try:
+        return _terrain(round(lat, 3), round(lon, 3))
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"Elevation tiles did not answer: {exc}") from exc
 
 
 @app.get("/")
