@@ -49,11 +49,11 @@
   async function explore() {
     if (!gallery) {
       const shots = await file("shots/index.json").catch(() => []);
-      const close = make("button", { type: "button", class: "ghost", text: "Close" });
+      const close = make("button", { type: "button", class: "btn small", text: "Close" });
       gallery = make("dialog", { class: "picker shots" },
         make("div", { class: "dialog-head" }, make("h2", { text: "Explore the live globe" }), close),
         make("div", { class: "dialog-body" },
-          make("p", { class: "plot-caption",
+          make("p", { class: "steps-note",
             text: "The globe streams NASA imagery, wind and events and computes each place on request, so it needs "
               + "the running app. These are pictures of it." }),
           ...shots.map((s) => make("figure", {},
@@ -71,7 +71,7 @@
   document.addEventListener("DOMContentLoaded", async () => {
     const meta = await file("data/snapshot.json").catch(() => null);
     if (!meta) return;
-    document.querySelector(".s-top").after(make("p", { class: "preview-note",
+    document.getElementById("start").prepend(make("p", { class: "preview-note",
       text: `Snapshot of ${meta.date}. Every result is real and was computed for the full record of each variable. `
         + "The running app also takes any range of years and any box drawn on the map, and opens the live globe." }));
   });

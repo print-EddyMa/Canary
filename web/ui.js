@@ -34,11 +34,13 @@ export function icon(name) {
  * A searchable select: a button that opens a filter box above a grouped list.
  * `groups()` returns [{ name, about, options: [{ value, label, detail, meta }] }] and is read
  * each time the list opens, so options can change. `actions` are extra commands listed
- * first (for example "Draw a box on the map"). Arrow keys move, Enter chooses, Escape closes.
+ * first (for example "Draw a box on the map"). `prefix` is a short label shown inside the button.
+ * Arrow keys move, Enter chooses, Escape closes.
  */
-export function combobox({ label, placeholder = "Choose", searchLabel, groups, actions = () => [], onChange, clearLabel, onClear }) {
+export function combobox({ label, prefix, placeholder = "Choose", searchLabel, groups, actions = () => [], onChange, clearLabel, onClear }) {
   const listId = uid("list");
   const trigger = el("button", { type: "button", class: "combo-trigger", "aria-haspopup": "listbox", "aria-expanded": "false" },
+    prefix ? el("span", { class: "combo-prefix", text: prefix }) : null,
     el("span", { class: "combo-value", text: placeholder }), icon("chevron"));
   const clear = clearLabel ? el("button", { type: "button", class: "combo-clear", "aria-label": clearLabel, hidden: "" }, icon("close")) : null;
   const input = el("input", { type: "text", class: "combo-search", role: "combobox", placeholder: searchLabel || "Search",
@@ -93,8 +95,11 @@ export function combobox({ label, placeholder = "Choose", searchLabel, groups, a
     }
     list.replaceChildren(...nodes);
     empty.hidden = items.length > 0;
-    const selected = items.findIndex((i) => i.value != null && i.value === current);
-    setActive(q ? (items.length ? 0 : -1) : selected, true);
+    // With a search, start on the best match: a name that begins with it, then one that contains it.
+    const name = (i) => i.label.toLowerCase();
+    const best = [items.findIndex((i) => name(i).startsWith(q)), items.findIndex((i) => name(i).includes(q)), items.length ? 0 : -1]
+      .find((index) => index >= 0) ?? -1;
+    setActive(q ? best : items.findIndex((i) => i.value != null && i.value === current), true);
   };
 
   const onOutside = (event) => { if (!root.contains(event.target)) close(false); };
@@ -185,9 +190,9 @@ export function sortableTable({ columns, rows, initial = null, rowClass, caption
 }
 
 /** Two or three views of one figure: buttons in a tablist, one panel shown at a time. */
-export function viewTabs(label, views, onSelect) {
-  const buttons = views.map((v, i) => el("button", { type: "button", role: "tab", id: uid("tab"),
-    "aria-selected": String(i === 0), tabindex: i === 0 ? "0" : "-1", text: v.label }));
+export function viewTabs(label, views, onSelect, selected = views[0].id) {
+  const buttons = views.map((v) => el("button", { type: "button", role: "tab", id: uid("tab"),
+    "aria-selected": String(v.id === selected), tabindex: v.id === selected ? "0" : "-1", text: v.label }));
   const select = (index, focus = false) => {
     buttons.forEach((b, i) => { b.setAttribute("aria-selected", String(i === index)); b.tabIndex = i === index ? 0 : -1; });
     if (focus) buttons[index].focus();

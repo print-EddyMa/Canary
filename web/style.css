@@ -256,7 +256,9 @@ table.data .sort .icon { width: 14px; height: 14px; }
 table.data .sort .is-idle { opacity: 0.3; }
 table.data th[aria-sort="ascending"], table.data th[aria-sort="descending"] { color: var(--text); }
 .unit { font-family: var(--font); font-size: 12px; color: var(--muted); }
-.dir { display: inline-flex; align-items: center; gap: 6px; }
+.dir { display: inline-grid; grid-template-columns: 14px auto 96px; align-items: center; gap: 8px; }
+.dir .unit { text-align: left; }
+table.data td .btn { font-family: var(--font); }
 .dir .icon { width: 14px; height: 14px; color: var(--text-2); }
 
 .meter { display: block; height: 6px; background: var(--surface-3); overflow: hidden; }
@@ -265,8 +267,8 @@ table.data th[aria-sort="ascending"], table.data th[aria-sort="descending"] { co
 
 /* ---------- trends page ---------- */
 
-.start { padding: 16px var(--gutter-r) 72px var(--gutter-l); }
-.start > * { max-width: 1320px; margin-left: auto; margin-right: auto; }
+.start { max-width: calc(1320px + var(--gutter-l) + var(--gutter-r)); margin: 0 auto; padding: 16px var(--gutter-r) 72px var(--gutter-l); }
+.query, .verdict-wrap, .figure { scroll-margin-top: calc(var(--header-h) + 16px); }
 
 .query {
   display: grid;
@@ -299,8 +301,10 @@ table.data th[aria-sort="ascending"], table.data th[aria-sort="descending"] { co
 .keyfigures > div { padding: 12px 16px; box-shadow: -1px 0 0 var(--border), 0 -1px 0 var(--border); min-width: 0; }
 .keyfigures dt { font-size: 12px; font-weight: 600; color: var(--text-2); }
 .keyfigures dd { margin: 0; }
-.keyfigures .value { margin-top: 2px; font-family: var(--mono); font-size: 19px; font-weight: 500; line-height: 1.35; color: var(--text); font-variant-numeric: tabular-nums; white-space: nowrap; }
-.keyfigures .value small { font-family: var(--font); font-size: 12px; font-weight: 400; color: var(--muted); }
+.keyfigures .value { margin-top: 2px; font-size: 20px; font-weight: 600; line-height: 1.35; letter-spacing: -0.005em; color: var(--text); font-variant-numeric: tabular-nums; }
+.verdict-pair .keyfigures { grid-template-columns: repeat(auto-fit, minmax(170px, 1fr)); }
+.verdict-pair .keyfigures .value { font-size: 17px; }
+.keyfigures .value small { font-size: 12px; font-weight: 400; letter-spacing: 0; color: var(--muted); }
 .keyfigures .note { font-size: 12px; color: var(--muted); }
 .keyfigures .tag { margin-top: 4px; font-size: 12px; }
 .key { display: inline-block; width: 14px; height: 0; border-top: 3px solid var(--series); vertical-align: middle; flex: none; }
@@ -314,7 +318,8 @@ table.data th[aria-sort="ascending"], table.data th[aria-sort="descending"] { co
 .figure-body { flex: 1; min-width: 0; padding: 12px 16px 16px; }
 .figure-body.flush { padding: 12px 0 0; }
 .figure-foot { display: flex; flex-wrap: wrap; justify-content: space-between; align-items: center; gap: 8px 16px; padding: 8px 16px; font-size: 12px; color: var(--muted); border-top: 1px solid var(--border); }
-.figure-foot .actions { display: flex; gap: 8px; }
+.figure-foot > span { flex: 1 1 260px; min-width: 0; }
+.figure-foot .actions { display: flex; gap: 8px; flex: none; }
 .sub { display: flex; align-items: center; gap: 8px; margin: 16px 0 8px; font-size: 13px; }
 .sub:first-child { margin-top: 0; }
 .figure-body > .table-scroll { max-height: 318px; border: 1px solid var(--border); }
@@ -503,7 +508,7 @@ table.data th[aria-sort="ascending"], table.data th[aria-sort="descending"] { co
 .stats { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; margin: 12px 0 10px; }
 .stat { padding: 10px 12px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); min-width: 0; }
 .stat-label { font-size: 12px; font-weight: 600; color: var(--text-2); }
-.stat-value { font-family: var(--mono); font-size: 20px; font-weight: 500; line-height: 1.35; font-variant-numeric: tabular-nums; }
+.stat-value { font-size: 20px; font-weight: 600; line-height: 1.35; font-variant-numeric: tabular-nums; }
 .stat-note { font-size: 12px; color: var(--muted); }
 
 .vital { padding: 14px; margin-bottom: 8px; background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); }
@@ -588,7 +593,7 @@ table.data th[aria-sort="ascending"], table.data th[aria-sort="descending"] { co
 /* ---------- dashboard (Live globe overview) ---------- */
 
 .planet .stat-value { font-size: 19px; white-space: nowrap; }
-.planet .stat-value small, .stat-value small { font-family: var(--font); font-size: 12px; font-weight: 400; color: var(--text-2); }
+.planet .stat-value small, .stat-value small { font-size: 12px; font-weight: 400; color: var(--text-2); }
 .stat-source { margin-top: 4px; font-size: 11px; color: var(--muted); }
 .spark { width: 84px; height: 28px; flex: none; }
 .spark-line { fill: none; stroke: var(--series); stroke-width: 1.5; stroke-linejoin: round; }
@@ -655,3 +660,7 @@ button.evidence-chip:hover { border-color: var(--text); }
   .maplibregl-ctrl-bottom-right .maplibregl-ctrl-group, .maplibregl-ctrl-scale { display: none; }
   .panel { top: auto; left: 0; width: auto; height: 52%; border-left: 0; border-top: 1px solid var(--border); }
 }
+
+/* Tables keep readable columns on a phone and scroll sideways inside their own frame. */
+.table-wrap > table.data { min-width: 560px; }
+#scan-body .table-wrap > table.data { min-width: 700px; }

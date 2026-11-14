@@ -1,14 +1,17 @@
-/* The start page: pick a variable and a region, and get a verdict.
-   Answers the four questions of a trend detective: what is changing, where,
-   how much, and is it significant. */
+/* The trend view: choose a variable and a region in the header, read the verdict in the
+   side panel, and see where it is changing on the globe. Answers the four questions of a
+   trend detective: what is changing, where, how much, and is it significant. */
 
-import { compareChart, lineChart, sparkline } from "./charts.js";
-import { el, fixed, getJSON, sig, statusIcon, thousands } from "./util.js";
+import "./app.js"; // the globe, its layers, the Place and Today panes
+import { compareChart, lineChart } from "./charts.js";
+import { combobox, icon, initTheme, sortableTable, viewTabs } from "./ui.js";
+import { coordText, el, fixed, getJSON, sig, thousands } from "./util.js";
 
-const GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best";
-const WORLD = [[-180, 85.051129], [180, 85.051129], [180, -85.051129], [-180, -85.051129]];
+const canary = window.canary;
+const map = canary.map;
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const FIRST_YEAR = 1981, LAST_YEAR = 2025, MIN_SPAN = 15;
+// The globe is dark in both themes, so outlines drawn on it use the dark-surface series colours.
 const SERIES = ["#3987e5", "#d95926"];
 // Snapshot build: results are precomputed for the full record and built-in regions only.
 const PREVIEW = Boolean(window.CANARY_PREVIEW);
@@ -28,31 +31,46 @@ const DEMOS = [
 const state = { variable: "temperature", region: "world", start: FIRST_YEAR, end: LAST_YEAR, compare: null };
 let cat = null; // variables, themes, regions
 let maps = null; // trend-map index
-let map = null;
+let boxes = null; // the three searchable selects in the header
 let results = { a: null, b: null };
 let requestId = 0;
-let pickingFor = "region"; // which region a click on the map sets
-let drawing = null; // {corner} while a box is being drawn
+let pickingFor = "region"; // which region a click on the globe sets
+let drawing = null; // {target, corner} while a box is being drawn
+let clicked = null; // {lat, lon, region} of the last click that chose a country
+let frameNext = true; // whether the next update should fly the globe to the region
 let tour = null;
+let seriesView = "chart";
 
 const $ = (id) => document.getElementById(id);
 const variable = () => cat.variables.find((v) => v.id === state.variable);
 const signedFix = (x, d) => `${x > 0 ? "+" : x < 0 ? "−" : ""}${Math.abs(x).toFixed(d)}`;
 const digits = (x) => (x === 0 ? 0 : Math.max(0, Math.min(4, 1 - Math.floor(Math.log10(Math.abs(x))))));
+const pShort = (p) => (p < 0.001 ? "< 0.001" : p.toFixed(3));
+const pEq = (p) => (p < 0.001 ? "p < 0.001" : `p = ${p.toFixed(3)}`);
+/** A region's name as it reads mid-sentence: "the Arctic", "Kenya". */
+const nm = (r) => r.region.name.replace(/^The /, "the ");
+const rateText = (r) => `${sig(r.trend.per_decade)} ${r.variable.unit} per decade`;
 
-function regionName(id) {
-  if (id === "world") return "the whole world";
+/** A region's own name, as a label: "The Arctic", "Kenya". */
+function regionLabel(id) {
+  if (id === "world") return "The whole world";
   const all = [...cat.regions.presets, ...cat.regions.continents, ...cat.regions.countries];
   const hit = all.find((r) => r.id === id);
-  if (hit) return hit.name.replace(/^The /, "the ");
-  if (id.startsWith("box:")) return "the drawn box";
+  if (hit) return hit.name;
+  if (id.startsWith("box:")) return "Drawn box";
   return id;
+}
+const regionName = (id) => regionLabel(id).replace(/^The /, "the ").replace(/^Drawn box$/, "the drawn box");
+
+function sigTag(yes, short = false) {
+  return el("span", { class: `tag ${yes ? "is-yes" : "is-no"}` }, el("i"),
+    short ? (yes ? "Yes" : "No") : (yes ? "Significant" : "Not significant"));
 }
 
 /* ---------- URL ---------- */
 
 function writeHash() {
-  if (PREVIEW || $("start").hidden) return; // Explore mode owns the address while it is showing
+  if (PREVIEW || canary.state.pane === "place") return; // a selected place owns the address while it is showing
   const parts = ["investigate", state.variable, state.region, `${state.start}-${state.end}`];
   if (state.compare) parts.push("vs", state.compare);
   history.replaceState(null, "", `#${parts.join("/")}`);
@@ -68,26 +86,49 @@ function readHash() {
   state.compare = parts[4] === "vs" && parts[5] ? parts[5] : null;
 }
 
-/* ---------- the sentence ---------- */
+/* ---------- the query strip ---------- */
 
-function renderSentence() {
-  const v = variable();
-  $("pick-variable").textContent = v.label.toLowerCase();
-  $("pick-region").textContent = regionName(state.region);
-  $("definition").replaceChildren(
-    el("strong", { text: `${v.label}: ` }), `${v.definition} `,
-    el("span", { class: "muted", text: `Measured in ${v.unit}. ${v.source}, from ${v.record_from}.` }));
-  const compareBox = $("compare-slot");
-  if (state.compare) {
-    compareBox.replaceChildren(" compared with ",
-      el("button", { type: "button", class: "slot slot-b", text: regionName(state.compare), onclick: () => openRegions("compare") }),
-      el("button", { type: "button", class: "slot-x", "aria-label": "Stop comparing", text: "×",
-        onclick: () => { state.compare = null; update(); } }));
-    $("add-compare").hidden = true;
-  } else {
-    compareBox.replaceChildren();
-    $("add-compare").hidden = false;
+function buildQuery() {
+  const regionGroups = (exclude) => () => [
+    { options: [{ value: "world", label: "The whole world", detail: "Every grid cell on Earth." }] },
+    { name: "Named regions", options: cat.regions.presets.map((r) => ({ value: r.id, label: r.name, detail: r.about })) },
+    { name: "Continents", options: cat.regions.continents.map((r) => ({ value: r.id, label: r.name })) },
+    { name: "Countries", options: cat.regions.countries.map((r) => ({ value: r.id, label: r.name })) },
+  ].map((g) => ({ ...g, options: g.options.filter((o) => o.value !== exclude()) }));
+  const drawAction = (target) => () => (PREVIEW ? [] : [{ label: "Draw a box on the map",
+    detail: "Any rectangle of at least 1 degree.", run: () => startDrawing(target) }]);
+
+  boxes = {
+    variable: combobox({
+      label: "Variable", prefix: "Variable", searchLabel: "Search variables",
+      groups: () => cat.themes.map((theme) => ({ name: theme.name, about: theme.about,
+        options: cat.variables.filter((v) => v.theme === theme.id).map((v) => ({
+          value: v.id, label: v.label, detail: v.definition, meta: `${v.unit} · from ${v.record_from}` })) })),
+      onChange: (id) => { state.variable = id; frameNext = false; update(); },
+    }),
+    region: combobox({
+      label: "Region", prefix: "Region", searchLabel: "Search countries and regions",
+      groups: regionGroups(() => null), actions: drawAction("region"),
+      onChange: (id) => { pickingFor = "region"; clicked = null; canary.showPane("trend"); setRegion("region", id); },
+    }),
+    compare: combobox({
+      label: "Compare with", prefix: "Compare", placeholder: "none", searchLabel: "Search countries and regions",
+      groups: regionGroups(() => state.region), actions: drawAction("compare"),
+      onChange: (id) => { pickingFor = "compare"; canary.showPane("trend"); setRegion("compare", id); },
+      clearLabel: "Stop comparing", onClear: () => { state.compare = null; pickingFor = "region"; update(); },
+    }),
+  };
+  for (const [name, box] of Object.entries(boxes)) {
+    box.trigger.id = `pick-${name}`;
+    $(`slot-${name}`).replaceChildren(box.root);
   }
+}
+
+function renderQuery() {
+  const v = variable();
+  boxes.variable.set(v.id, v.label);
+  boxes.region.set(state.region, regionLabel(state.region));
+  boxes.compare.set(state.compare, state.compare ? regionLabel(state.compare) : "");
   for (const [id, lo, hi] of [["year-start", FIRST_YEAR, LAST_YEAR - MIN_SPAN + 1], ["year-end", FIRST_YEAR + MIN_SPAN - 1, LAST_YEAR]]) {
     const select = $(id);
     if (!select.options.length) for (let y = lo; y <= hi; y++) select.append(el("option", { value: y, text: y }));
@@ -100,27 +141,35 @@ function renderSentence() {
 
 /* ---------- verdict ---------- */
 
-function verdictCard(r, key) {
-  const up = r.trend.direction === "rising";
-  const icon = el("span", { class: "verdict-arrow", "aria-hidden": "true",
-    text: !r.significant ? "≈" : up ? "↗" : "↘" });
-  return el("article", { class: `verdict ${r.significant ? "is-significant" : "not-significant"}${key ? ` key-${key}` : ""}` },
-    icon,
-    el("div", {},
-      key ? el("p", { class: "verdict-region" }, el("i", { class: `key series-${key === "a" ? 1 : 2}` }), r.region.name) : null,
-      el("h2", { class: "verdict-headline", text: r.headline }),
-      el("p", { class: "verdict-detail", text: r.detail }),
-      el("p", { class: "chips" },
-        el("span", { class: "chip" }, statusIcon(r.significant ? "watch" : "stable"), r.significant ? "Significant" : "Not significant"),
-        el("span", { class: "chip", text: `Mann-Kendall ${pEq(r.tests.mann_kendall.p)}` }),
-        el("span", { class: "chip", text: `t-test ${pEq(r.tests.t_test.p)}` }),
-        el("span", { class: "chip", text: `${r.tests.years} years, ${r.period[0]}–${r.period[1]}` }))));
+function keyFigures(r) {
+  const v = r.variable, t = r.trend, d = digits(t.per_decade), mk = r.tests.mann_kendall;
+  const item = (label, value, note, extra) => el("div", {}, el("dt", { text: label }),
+    el("dd", { class: "value", text: value }), note ? el("dd", { class: "note", text: note }) : null,
+    extra ? el("dd", {}, extra) : null);
+  return el("dl", { class: "keyfigures" },
+    item("Rate of change", signedFix(t.per_decade, d), `${v.unit} per decade`),
+    item("95% range", `${signedFix(t.range_per_decade[0], d)} to ${signedFix(t.range_per_decade[1], d)}`, "likely range of the true rate"),
+    item(`Total, ${r.period[0]}–${r.period[1]}`, signedFix(t.total_change, digits(t.total_change)),
+      t.percent_change == null ? v.unit : `${v.unit} (${signedFix(t.percent_change, 0)}%)`),
+    item("Against normal swings", t.signal_to_noise == null ? "n/a" : `${t.signal_to_noise.toFixed(1)}×`,
+      "the usual year-to-year swing"),
+    item("Significance", pEq(mk.p), `Mann-Kendall, ${r.tests.years} years`, sigTag(r.significant)));
 }
 
-const pShort = (p) => (p < 0.001 ? "< 0.001" : p.toFixed(3));
-const pEq = (p) => (p < 0.001 ? "p < 0.001" : `p = ${p.toFixed(3)}`);
-/** A region's name as it reads mid-sentence: "the Arctic", "Kenya". */
-const nm = (r) => r.region.name.replace(/^The /, "the ");
+function verdictBlock(r, key) {
+  const v = r.variable, up = r.trend.direction === "rising";
+  const title = r.significant
+    ? [`${v.label} in ${nm(r)} is ${up ? "rising" : "falling"} by `, el("mark", { text: rateText(r) })]
+    : [`${v.label} in ${nm(r)} shows no significant trend`];
+  const detail = r.significant ? r.detail
+    : r.detail.replace(/^Not significant\. /, `Not significant. The trend line tilts ${up ? "up" : "down"} by ${rateText(r)}. `);
+  return el("article", { class: `verdict ${r.significant ? "is-significant" : "not-significant"}` },
+    key ? el("p", { class: "verdict-region" }, el("i", { class: `key series-${key === "a" ? 1 : 2}` }), r.region.name)
+      : el("p", { class: "question", text: `Is ${v.label.toLowerCase()} changing in ${nm(r)}?` }),
+    el(key ? "h2" : "h1", { class: "verdict-headline" }, ...title),
+    el("p", { class: "verdict-detail", text: detail }),
+    keyFigures(r));
+}
 
 function comparisonLine(a, b) {
   const dir = (r) => (r.trend.direction === "rising" ? "rising" : "falling");
@@ -143,58 +192,61 @@ function comparisonLine(a, b) {
   return el("p", { class: "comparison", text });
 }
 
-/* ---------- cards ---------- */
+/* ---------- the series figure: chart or table ---------- */
 
-function seriesCard(a, b) {
+const trendKey = (r) => {
+  const d = digits(r.trend.per_decade);
+  return `${signedFix(r.trend.per_decade, d)} ${r.variable.unit} per decade (95% range ${signedFix(r.trend.range_per_decade[0], d)} to `
+    + `${signedFix(r.trend.range_per_decade[1], d)}${r.significant ? "" : ", not significant"})`;
+};
+
+function seriesChart(a, b) {
   const v = a.variable;
-  const body = [];
   if (!b) {
-    body.push(el("div", { class: "legend" },
-      el("span", {}, el("i"), `Yearly average, ${nm(a)}`),
-      el("span", {}, el("i", { class: "trend" }), a.significant ? "Trend" : "Trend (not significant)")));
-    body.push(lineChart({
-      x: a.years, y: a.values, width: 600, height: 250,
-      fit: [{ x: a.period[0], y: a.trend.line[0] }, { x: a.period[1], y: a.trend.line[1] }],
-      fitStrong: a.significant,
-      label: `${v.label} in ${nm(a)}, yearly averages ${a.period[0]} to ${a.period[1]}, with trend line`,
-      rows: (i) => [String(a.years[i]), `${fixed(a.values[i], v.decimals)} ${v.unit}`,
-        `${signedFix(a.values[i] - a.normal, v.decimals)} against the 1991–2020 average`],
-    }));
-    body.push(el("p", { class: "plot-caption",
-      text: `Each point is one year, averaged over ${thousands(a.region.cells)} grid cells and weighted by their area. `
-        + `The straight line is the Theil-Sen trend. Unit: ${v.unit}.` }));
-  } else {
-    const prep = (r) => ({
-      name: r.region.name, x: r.years, y: r.values.map((val) => (val == null ? null : val - r.normal)),
-      fit: [{ x: r.period[0], y: r.trend.line[0] - r.normal }, { x: r.period[1], y: r.trend.line[1] - r.normal }],
-      strong: r.significant,
-    });
-    body.push(el("div", { class: "legend" },
-      el("span", {}, el("i", { class: "key series-1" }), a.region.name),
-      el("span", {}, el("i", { class: "key series-2" }), b.region.name)));
-    body.push(compareChart({ series: [prep(a), prep(b)], unit: v.unit, decimals: v.decimals,
-      label: `${v.label}: ${a.region.name} and ${b.region.name}, each as the difference from its own 1991 to 2020 average` }));
-    body.push(el("p", { class: "plot-caption",
-      text: `Each region is shown as its difference from its own 1991–2020 average, so that places with different climates share one axis. Unit: ${v.unit}.` }));
+    return [
+      el("div", { class: "legend" },
+        el("span", {}, el("i"), "Yearly average"),
+        el("span", {}, el("i", { class: "trend" }), `Trend: ${trendKey(a)}`)),
+      lineChart({
+        x: a.years, y: a.values, width: 440, height: 250,
+        fit: [{ x: a.period[0], y: a.trend.line[0] }, { x: a.period[1], y: a.trend.line[1] }],
+        fitStrong: a.significant,
+        label: `${v.label} in ${nm(a)}, yearly averages ${a.period[0]} to ${a.period[1]}, with trend line`,
+        rows: (i) => [String(a.years[i]), `${fixed(a.values[i], v.decimals)} ${v.unit}`,
+          `${signedFix(a.values[i] - a.normal, v.decimals)} against the 1991–2020 average`],
+      }),
+    ];
   }
-  body.push(tableDetails(a, b));
-  return body;
+  const prep = (r) => ({
+    name: r.region.name, x: r.years, y: r.values.map((val) => (val == null ? null : val - r.normal)),
+    fit: [{ x: r.period[0], y: r.trend.line[0] - r.normal }, { x: r.period[1], y: r.trend.line[1] - r.normal }],
+    strong: r.significant,
+  });
+  return [
+    el("div", { class: "legend" },
+      el("span", {}, el("i", { class: "key series-1" }), `${a.region.name}: ${trendKey(a)}`),
+      el("span", {}, el("i", { class: "key series-2" }), `${b.region.name}: ${trendKey(b)}`)),
+    compareChart({ series: [prep(a), prep(b)], unit: v.unit, decimals: v.decimals, width: 440, height: 250,
+      label: `${v.label}: ${a.region.name} and ${b.region.name}, each as the difference from its own 1991 to 2020 average` }),
+  ];
 }
 
-function tableDetails(a, b) {
+function seriesTable(a, b) {
   const v = a.variable;
-  const details = el("details", {}, el("summary", { text: "Data table" }));
-  details.addEventListener("toggle", () => {
-    if (!details.open || details.querySelector("table")) return;
-    const table = el("table", {}, el("tr", {}, el("th", { text: "Year" }),
-      el("th", { text: `${a.region.name} (${v.unit})` }), b ? el("th", { text: `${b.region.name} (${v.unit})` }) : null));
-    a.years.forEach((year, i) => table.append(el("tr", {}, el("td", { text: year }),
-      el("td", { text: a.values[i] == null ? "" : fixed(a.values[i], v.decimals) }),
-      b ? el("td", { text: b.values[b.years.indexOf(year)] == null ? "" : fixed(b.values[b.years.indexOf(year)], v.decimals) }) : null)));
-    details.append(el("div", { class: "table-scroll" }, table));
-    if (!PREVIEW) details.append(el("button", { type: "button", class: "ghost", text: "Download as CSV", onclick: () => downloadCsv(a, b) }));
-  });
-  return details;
+  const cell = (r, year) => {
+    const value = r.values[r.years.indexOf(year)];
+    return value == null ? "" : fixed(value, v.decimals);
+  };
+  const head = b
+    ? ["Year", `${a.region.name} (${v.unit})`, `${b.region.name} (${v.unit})`]
+    : ["Year", `Yearly average (${v.unit})`, "Against the 1991–2020 average"];
+  const table = el("table", { class: "data" },
+    el("thead", {}, el("tr", {}, ...head.map((h, i) => el("th", { scope: "col", class: i ? "num" : "", text: h })))),
+    el("tbody", {}, ...a.years.map((year, i) => el("tr", {},
+      el("td", { text: year }),
+      el("td", { class: "num", text: cell(a, year) }),
+      el("td", { class: "num", text: b ? cell(b, year) : a.values[i] == null ? "" : signedFix(a.values[i] - a.normal, v.decimals) })))));
+  return [el("div", { class: "table-scroll", tabindex: "0", role: "region", "aria-label": "Yearly values" }, table)];
 }
 
 function downloadCsv(a, b) {
@@ -213,146 +265,167 @@ function downloadCsv(a, b) {
   URL.revokeObjectURL(link.href);
 }
 
-function tile(label, value, note) {
-  return el("div", { class: "stat" }, el("div", { class: "stat-label", text: label }),
-    el("div", { class: "stat-value", text: value }), note ? el("div", { class: "stat-note", text: note }) : null);
+function copyLinkButton() {
+  const button = el("button", { type: "button", class: "btn small" }, icon("link"), "Copy link");
+  button.addEventListener("click", async () => {
+    let done = true;
+    try { await navigator.clipboard.writeText(location.href); } catch { done = false; }
+    button.lastChild.textContent = done ? "Link copied" : "Copy the address bar instead";
+    setTimeout(() => { button.lastChild.textContent = "Copy link"; }, 2200);
+  });
+  return button;
 }
 
+function renderSeries(a, b) {
+  const v = a.variable;
+  const body = el("div", { class: "figure-body" });
+  const draw = (view) => {
+    seriesView = view;
+    body.replaceChildren(...(view === "table" ? seriesTable(a, b) : seriesChart(a, b)));
+  };
+  $("card-series").replaceChildren(
+    el("header", { class: "figure-head" },
+      el("div", {},
+        el("h2", { class: "figure-title", text: b ? `${v.label}: ${a.region.name} and ${b.region.name}` : `${v.label}, ${nm(a)}` }),
+        el("p", { class: "figure-sub", text: b
+          ? `Yearly difference from each region's own 1991–2020 average, ${a.period[0]}–${a.period[1]}, in ${v.unit}`
+          : `Yearly average, ${a.period[0]}–${a.period[1]}, in ${v.unit}` })),
+      viewTabs("View", [{ id: "chart", label: "Chart" }, { id: "table", label: "Table" }], draw, seriesView)),
+    body,
+    el("footer", { class: "figure-foot" },
+      el("p", {}, el("strong", { text: `${v.label}. ` }), `${v.definition} `,
+        `Source: ${v.source}, parameter ${v.parameter}`
+        + (b ? "." : `; area-weighted average of ${thousands(a.region.cells)} grid cells.`)),
+      PREVIEW ? null : el("div", { class: "actions" },
+        el("button", { type: "button", class: "btn small", onclick: () => downloadCsv(a, b) }, icon("download"), "Download CSV"),
+        copyLinkButton())));
+  draw(seriesView);
+}
+
+/* ---------- details: significance, context, every variable ---------- */
+
 function evidenceCard(r) {
-  const v = r.variable, t = r.trend, mk = r.tests.mann_kendall, tt = r.tests.t_test;
-  const d = digits(t.per_decade);
+  const v = r.variable, mk = r.tests.mann_kendall, tt = r.tests.t_test;
+  const d = digits(r.trend.per_decade);
   const rows = [
-    ["Mann-Kendall", `Counts how often later years are higher than earlier ones. Kendall τ = ${signedFix(mk.tau, 2)}.`, pShort(mk.p)],
-    ["t-test on the slope", `Fits a straight line by least squares: ${signedFix(tt.per_decade, d)} ${v.unit} per decade.`, pShort(tt.p)],
+    ["Mann-Kendall", "Are later years higher than earlier ones more often than chance would give?",
+      `τ = ${signedFix(mk.tau, 2)}`, pShort(mk.p)],
+    ["t-test on the slope", "Is a straight line fitted through the years tilted?",
+      `${signedFix(tt.per_decade, d)} per decade`, pShort(tt.p)],
   ];
   return [
-    el("div", { class: "stats four" },
-      tile("Rate of change", `${signedFix(t.per_decade, d)}`, `${v.unit} per decade`),
-      tile("95% range", `${signedFix(t.range_per_decade[0], d)} to ${signedFix(t.range_per_decade[1], d)}`, "where the true rate very likely lies"),
-      tile(`Total since ${r.period[0]}`, `${signedFix(t.total_change, digits(t.total_change))}`,
-        t.percent_change == null ? v.unit : `${v.unit} (${signedFix(t.percent_change, 0)}%)`),
-      tile("Against normal swings", t.signal_to_noise == null ? "n/a" : `${t.signal_to_noise.toFixed(1)}×`,
-        t.signal_to_noise >= 1 ? "bigger than a usual year-to-year swing" : "smaller than a usual year-to-year swing")),
-    el("table", { class: "tests" },
-      el("tr", {}, el("th", { text: "Test" }), el("th", { text: "What it does" }), el("th", { text: "p-value" })),
-      ...rows.map(([name, what, p]) => el("tr", {}, el("td", { text: name }), el("td", { text: what }), el("td", { text: p })))),
-    el("p", { class: "plot-caption", text:
+    el("table", { class: "data tests" },
+      el("thead", {}, el("tr", {}, el("th", { scope: "col", text: "Test" }),
+        el("th", { scope: "col", class: "num", text: "Result" }), el("th", { scope: "col", class: "num", text: "p-value" }))),
+      el("tbody", {}, ...rows.map(([name, what, result, p]) => el("tr", {},
+        el("td", {}, el("strong", { text: name }), el("small", { text: what })),
+        el("td", { class: "num", text: result }), el("td", { class: "num", text: p }))))),
+    el("p", { class: "note-text", text:
       `A p-value below 0.05 is the usual line for “significant”. The two tests ${r.tests.agree ? "agree" : "disagree, so treat the verdict with care"}. `
       + (mk.variance_inflation > 1.05 ? `Years are not independent of each other here, so the uncertainty was widened ${mk.variance_inflation.toFixed(1)} times before testing. ` : "")
-      + `Source: ${v.source}, parameter ${v.parameter}.` }),
+      + (r.more_years_needed ? `At this rate, about ${r.more_years_needed} more year${r.more_years_needed > 1 ? "s" : ""} of data would settle it.` : "") }),
   ];
 }
 
 function whyCard(r) {
   const v = r.variable;
   const items = [];
+  const add = (label, text) => items.push(el("li", {}, el("strong", { text: label }), el("span", { text })));
   if (r.split) {
     const s = r.split;
-    items.push(el("li", {}, el("strong", { text: "Inside the region: " }),
+    add("Inside the region",
       `${fixed(s.rising_percent, 0)}% of the area has a significant rise, ${fixed(s.falling_percent, 0)}% a significant fall, `
-      + `and ${fixed(s.unclear_percent, 0)}% no clear trend. `
-      + (s.rising_percent > 10 && s.falling_percent > 10 ? "The average hides opposite trends: look at the map." : "")));
+      + `and ${fixed(s.unclear_percent, 0)}% no clear trend.`
+      + (s.rising_percent > 10 && s.falling_percent > 10 ? " The average hides opposite trends: look at the map." : ""));
   }
   const world = maps && maps.layers.find((l) => l.id === v.id);
   if (world && r.region.kind !== "world") {
     const w = world.mean_trend_per_decade;
-    items.push(el("li", {}, el("strong", { text: "Against the world: " }),
-      `the mapped world as a whole is changing by ${signedFix(w, digits(w))} ${v.unit} per decade; `
-      + `this region by ${signedFix(r.trend.per_decade, digits(r.trend.per_decade))}.`));
+    add("Against the world", `The mapped world as a whole is changing by ${signedFix(w, digits(w))} ${v.unit} per decade; `
+      + `this region by ${signedFix(r.trend.per_decade, digits(r.trend.per_decade))}.`);
   }
   for (const link of r.links.slice(0, 2)) {
-    items.push(el("li", {}, el("strong", { text: `${link.name}: ` }),
-      `the region's ups and downs from year to year follow it (correlation ${signedFix(link.r, 2)}, about ${link.share_of_swings_percent}% of the swings). `
-      + "That explains good and bad years, not the long-term trend."));
+    add(link.name, `The region's ups and downs from year to year follow it (correlation ${signedFix(link.r, 2)}, `
+      + `about ${link.share_of_swings_percent}% of the swings). That explains good and bad years, not the long-term trend.`);
   }
   if (!r.links.length) {
-    items.push(el("li", {}, el("strong", { text: "Climate rhythms: " }),
-      "the yearly ups and downs here do not follow El Niño or the four other ocean and pressure rhythms tested."));
+    add("Climate rhythms", "The yearly ups and downs here do not follow El Niño or the four other ocean and pressure rhythms tested.");
   }
-  if (v.caution) items.push(el("li", {}, el("strong", { text: "Caution: " }), v.caution));
-  items.push(el("li", {}, el("strong", { text: "Remember: " }),
-    "a significant trend says that something is changing, not why. The cause has to be argued from other evidence."));
+  if (v.caution) add("Caution", v.caution);
+  add("Remember", "A significant trend says that something is changing, not why. The cause has to be argued from other evidence.");
   const centre = r.region.bounds && r.region.kind !== "world"
     ? [(r.region.bounds[0] + r.region.bounds[2]) / 2, (r.region.bounds[1] + r.region.bounds[3]) / 2] : null;
   const out = [el("ul", { class: "why" }, ...items)];
   if (centre && !PREVIEW) {
-    out.push(el("button", { type: "button", class: "ghost", text: "Have the detective investigate a place in this region",
-      onclick: () => openExplore({ lat: centre[0], lon: centre[1], name: `Centre of ${nm(r)}`, tab: "case" }) }));
+    out.push(el("button", { type: "button", class: "btn small",
+      onclick: () => canary.select(centre[0], centre[1], `Centre of ${nm(r)}`, { tab: "case" }) },
+      icon("globe"), "Open a detective case file for this region"));
   }
   return out;
 }
 
 async function renderScan(id) {
   const box = $("scan-body");
-  $("scan-title").textContent = `What else is changing in ${regionName(state.region)}?`;
+  $("scan-title").textContent = `Every variable in ${regionName(state.region)}`;
+  $("scan-gist").textContent = "";
   box.replaceChildren(el("p", { class: "loading-note", text: "Testing every variable…" }));
   let data;
   try {
     data = await getJSON(`/api/scan?region=${encodeURIComponent(state.region)}&start=${state.start}&end=${state.end}`);
   } catch (error) {
-    if (id === requestId) box.replaceChildren(el("p", { class: "plot-caption", text: `The scan could not run: ${error.message}` }));
+    if (id === requestId) box.replaceChildren(el("p", { class: "note-text", text: `The scan could not run: ${error.message}` }));
     return;
   }
   if (id !== requestId) return;
-  const top = Math.max(...data.variables.map((r) => r.signal_to_noise || 0), 1);
-  const rows = data.variables.map((r) => {
-    const arrow = !r.significant ? "≈" : r.direction === "rising" ? "↗" : "↘";
-    return el("tr", { class: r.id === state.variable ? "current" : "" },
-      el("td", {}, el("button", { type: "button", class: "link", text: r.label,
-        onclick: () => { state.variable = r.id; update(); window.scrollTo({ top: 0, behavior: REDUCED_MOTION ? "auto" : "smooth" }); } })),
-      el("td", { class: "num", text: `${arrow} ${signedFix(r.per_decade, digits(r.per_decade))} ${r.unit}` }),
-      el("td", {}, el("span", { class: "meter", role: "img", "aria-label": `${(r.signal_to_noise || 0).toFixed(1)} times the usual swing` },
-        el("i", { style: `width:${Math.round(100 * (r.signal_to_noise || 0) / top)}%` }))),
-      el("td", {}, el("span", { class: "chip" }, statusIcon(r.significant ? "watch" : "stable"), r.significant ? "Significant" : "Not significant")));
+  $("scan-gist").textContent = `${data.significant} of ${data.tested} trending`;
+  const table = sortableTable({
+    caption: `Every variable tested in ${regionName(state.region)}`,
+    rows: data.variables,
+    rowClass: (r) => (r.id === state.variable ? "current" : ""),
+    columns: [
+      { key: "label", label: "Variable", sort: (r) => r.label,
+        cell: (r) => el("button", { type: "button", class: "link", text: r.label,
+          onclick: () => { state.variable = r.id; frameNext = false; update(); $("panel").scrollTo({ top: 0, behavior: REDUCED_MOTION ? "auto" : "smooth" }); } }) },
+      { key: "change", label: "Per decade", numeric: true,
+        cell: (r) => [signedFix(r.per_decade, digits(r.per_decade)), " ", el("span", { class: "unit", text: r.unit })] },
+      { key: "swing", label: "× swing", numeric: true, sort: (r) => r.signal_to_noise || 0,
+        cell: (r) => (r.signal_to_noise || 0).toFixed(1) },
+      { key: "verdict", label: "Significant", sort: (r) => (r.significant ? 0 : 1), cell: (r) => sigTag(r.significant, true) },
+    ],
   });
-  const table = el("table", { class: "scan" },
-    el("tr", {}, el("th", { text: "Variable" }), el("th", { class: "num", text: "Change per decade" }),
-      el("th", { text: "Size against normal swings" }), el("th", { text: "Verdict" })), ...rows);
   box.replaceChildren(
-    el("p", { class: "plot-caption", text:
-      `${data.significant} of ${data.tested} variables show a significant trend here. Testing many at once invites flukes, so these verdicts `
-      + "use a stricter test (false-discovery control) than a single investigation. Click a variable to investigate it."
+    el("p", { class: "note-text", text: "Testing many variables at once invites flukes, so these verdicts use a stricter test "
+      + "(false-discovery control) than a single investigation. “× swing” is the total change against the usual year-to-year swing."
       + (data.still_loading.length ? ` ${data.still_loading.length} more are still being fetched from NASA.` : "") }),
     el("div", { class: "table-wrap" }, table));
 }
 
-/* ---------- map ---------- */
+/* ---------- the globe: countries, selected regions, drawing a box ---------- */
 
-function initMap() {
-  map = new maplibregl.Map({
-    container: "start-map", center: [10, 25], zoom: 0.9, maxZoom: 6, attributionControl: { compact: true },
-    dragRotate: false,
-    style: {
-      version: 8,
-      projection: { type: "globe" },
-      sky: { "atmosphere-blend": 0.6 },
-      sources: {
-        // The snapshot build cannot load outside imagery, so it shows a plain globe.
-        base: { type: "raster", tileSize: 256, maxzoom: 8, attribution: PREVIEW ? "" : "Imagery: NASA GIBS",
-          tiles: PREVIEW ? [] : [`${GIBS}/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg`] },
-        countries: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
-        shapes: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
-      },
-      layers: [
-        { id: "space", type: "background", paint: { "background-color": PREVIEW ? "#20201e" : "#0d0d0d" } },
-        ...(PREVIEW ? [] : [{ id: "base", type: "raster", source: "base", paint: { "raster-saturation": -0.8, "raster-brightness-max": 0.42 } }]),
-        { id: "country-hit", type: "fill", source: "countries", paint: { "fill-color": "#ffffff", "fill-opacity": 0 } },
-        { id: "country-lines", type: "line", source: "countries", paint: { "line-color": "rgba(240,239,236,0.35)", "line-width": 0.6 } },
-        { id: "country-hover", type: "line", source: "countries", filter: ["==", ["get", "code"], ""],
-          paint: { "line-color": "#f0efec", "line-width": 1.5 } },
-        { id: "sel-a", type: "line", source: "countries", filter: ["==", ["get", "code"], ""],
-          paint: { "line-color": SERIES[0], "line-width": 2.5 } },
-        { id: "sel-b", type: "line", source: "countries", filter: ["==", ["get", "code"], ""],
-          paint: { "line-color": SERIES[1], "line-width": 2.5 } },
-        { id: "shapes", type: "line", source: "shapes",
-          paint: { "line-color": ["match", ["get", "key"], "b", SERIES[1], "draw", "#f0efec", SERIES[0]], "line-width": 2.5 } },
-      ],
-    },
-  });
-  map.addControl(new maplibregl.NavigationControl({ showCompass: false }), "top-right");
-  const tip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 8, className: "country-tip" });
+const EMPTY = { type: "FeatureCollection", features: [] };
+const NO_COUNTRY = ["==", ["get", "code"], ""];
+
+function attachMap() {
+  map.addSource("countries", { type: "geojson", data: EMPTY });
+  map.addSource("shapes", { type: "geojson", data: EMPTY });
+  const under = "storm-tracks"; // keep event markers and routes on top
+  const line = (id, source, filter, color, width, extra = {}) => map.addLayer({ id, type: "line", source, ...(filter ? { filter } : {}),
+    layout: { "line-join": "round" }, paint: { "line-color": color, "line-width": width, ...extra } }, under);
+  map.addLayer({ id: "country-hit", type: "fill", source: "countries", paint: { "fill-color": "#ffffff", "fill-opacity": 0 } }, under);
+  // The snapshot build has no reference imagery, so it draws the outlines itself.
+  if (PREVIEW) line("country-lines", "countries", null, "rgba(232,234,237,0.35)", 0.6);
+  line("country-hover", "countries", NO_COUNTRY, "#ffffff", 1.2);
+  const casing = "rgba(11,14,19,0.75)";
+  line("sel-a-case", "countries", NO_COUNTRY, casing, 5);
+  line("sel-b-case", "countries", NO_COUNTRY, casing, 5);
+  line("shapes-case", "shapes", null, casing, 5);
+  line("sel-a", "countries", NO_COUNTRY, SERIES[0], 2.5);
+  line("sel-b", "countries", NO_COUNTRY, SERIES[1], 2.5);
+  line("shapes", "shapes", null, ["match", ["get", "key"], "b", SERIES[1], "draw", "#ffffff", SERIES[0]], 2.5);
+
+  const tip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, className: "country-tip" });
   map.on("mousemove", "country-hit", (e) => {
-    if (drawing) return;
+    if (drawing || canary.state.pane === "place") return;
     const p = e.features[0].properties;
     map.getCanvas().style.cursor = "pointer";
     map.setFilter("country-hover", ["==", ["get", "code"], p.code]);
@@ -360,26 +433,33 @@ function initMap() {
   });
   map.on("mouseleave", "country-hit", () => {
     map.getCanvas().style.cursor = drawing ? "crosshair" : "";
-    map.setFilter("country-hover", ["==", ["get", "code"], ""]);
+    map.setFilter("country-hover", NO_COUNTRY);
     tip.remove();
   });
   map.on("mousemove", (e) => {
     if (drawing && drawing.corner) drawShapes([boxFeature(drawing.corner, e.lngLat, "draw")]);
   });
-  map.on("click", (e) => {
-    if (drawing) {
-      if (!drawing.corner) { drawing.corner = e.lngLat; return; }
-      const a = drawing.corner, b = e.lngLat;
-      const target = drawing.target;
-      stopDrawing();
-      const id = `box:${Math.min(a.lat, b.lat).toFixed(1)},${Math.min(a.lng, b.lng).toFixed(1)},${Math.max(a.lat, b.lat).toFixed(1)},${Math.max(a.lng, b.lng).toFixed(1)}`;
-      setRegion(target, id);
-      return;
-    }
-    const hit = map.queryRenderedFeatures(e.point, { layers: ["country-hit"] })[0];
-    if (hit) setRegion(state.compare ? pickingFor : "region", `country:${hit.properties.code}`);
-  });
-  return new Promise((resolve) => map.on("load", resolve));
+  canary.onMapClick = onMapClick;
+}
+
+/** A click on the globe: a box corner while drawing, a place in the Place pane, otherwise a country. */
+function onMapClick(e) {
+  if (drawing) {
+    if (!drawing.corner) { drawing.corner = e.lngLat; return; }
+    const a = drawing.corner, b = e.lngLat, target = drawing.target;
+    stopDrawing();
+    setRegion(target, `box:${Math.min(a.lat, b.lat).toFixed(1)},${Math.min(a.lng, b.lng).toFixed(1)},${Math.max(a.lat, b.lat).toFixed(1)},${Math.max(a.lng, b.lng).toFixed(1)}`);
+    return;
+  }
+  const hit = canary.state.pane === "place" ? null : map.queryRenderedFeatures(e.point, { layers: ["country-hit"] })[0];
+  if (!hit) { canary.select(e.lngLat.lat, e.lngLat.lng, null, { fly: false }); return; }
+  const target = state.compare ? pickingFor : "region";
+  const region = `country:${hit.properties.code}`;
+  clicked = { lat: e.lngLat.lat, lon: e.lngLat.lng, region };
+  frameNext = false; // the visitor is already looking at it
+  canary.stopSpin();
+  canary.showPane("trend");
+  setRegion(target, region);
 }
 
 function boxFeature(a, b, key) {
@@ -394,17 +474,21 @@ function drawShapes(extra = []) {
 }
 
 function startDrawing(target) {
+  endTour();
   drawing = { target, corner: null };
+  canary.stopSpin();
+  canary.showPane("trend");
   map.getCanvas().style.cursor = "crosshair";
-  $("map-hint").textContent = "Click two opposite corners of the box on the map.";
-  $("card-map").scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "center" });
+  $("map-note").replaceChildren("Click two opposite corners of the box on the globe. ",
+    el("button", { type: "button", class: "btn small", text: "Cancel", onclick: stopDrawing }));
+  $("map-note").hidden = false;
 }
 
 function stopDrawing() {
   drawing = null;
   map.getCanvas().style.cursor = "";
   drawShapes();
-  $("map-hint").textContent = "Click a country to investigate it, or draw a box.";
+  $("map-note").hidden = true;
 }
 
 function setRegion(target, id) {
@@ -412,15 +496,17 @@ function setRegion(target, id) {
   update();
 }
 
-function showRegionsOnMap(a, b) {
+function showRegionsOnMap(a, b, frame) {
   const filterFor = (r) => {
-    if (!r) return ["==", ["get", "code"], ""];
+    if (!r) return NO_COUNTRY;
     if (r.region.kind === "country") return ["==", ["get", "code"], r.region.id.split(":")[1]];
     if (r.region.kind === "continent") return ["==", ["get", "continent"], r.region.name];
-    return ["==", ["get", "code"], ""];
+    return NO_COUNTRY;
   };
-  map.setFilter("sel-a", filterFor(a));
-  map.setFilter("sel-b", filterFor(b));
+  for (const [key, r] of [["a", a], ["b", b]]) {
+    map.setFilter(`sel-${key}`, filterFor(r));
+    map.setFilter(`sel-${key}-case`, filterFor(r));
+  }
   regionShapes = [];
   for (const [r, key] of [[a, "a"], [b, "b"]]) {
     if (r && (r.region.kind === "preset" || r.region.kind === "box")) {
@@ -437,133 +523,70 @@ function showRegionsOnMap(a, b) {
   }
   drawShapes();
 
-  // Trend map for this variable.
-  const layer = maps && maps.layers.find((l) => l.id === state.variable);
-  if (map.getLayer("trend")) map.removeLayer("trend");
-  if (map.getSource("trend")) map.removeSource("trend");
-  if (layer) {
-    map.addSource("trend", { type: "image", url: layer.image, coordinates: WORLD });
-    map.addLayer({ id: "trend", type: "raster", source: "trend",
-      paint: { "raster-opacity": 0.9, "raster-fade-duration": 0, "raster-resampling": "nearest" } }, "country-hit");
-  }
-
-  // Frame the regions.
-  const boxes = [a, b].filter((r) => r && r.region.bounds && r.region.kind !== "world").map((r) => r.region.bounds);
-  if (!boxes.length) { map.easeTo({ center: [10, 25], zoom: 0.9, duration: 900 }); return; }
-  const s = Math.min(...boxes.map((x) => x[0])), n = Math.max(...boxes.map((x) => x[2]));
-  const w = Math.min(...boxes.map((x) => x[1])), e = Math.max(...boxes.map((x) => x[3]));
+  const frames = [a, b].filter((r) => r && r.region.bounds && r.region.kind !== "world").map((r) => r.region.bounds);
+  if (!frame || !frames.length) return;
+  canary.stopSpin();
+  const s = Math.min(...frames.map((x) => x[0])), n = Math.max(...frames.map((x) => x[2]));
+  const w = Math.min(...frames.map((x) => x[1])), e = Math.max(...frames.map((x) => x[3]));
   const span = Math.max(n - s, (e - w) * 0.6, 8);
-  const centreLon = e - w > 300 ? 10 : (w + e) / 2;
-  map.easeTo({ center: [centreLon, Math.max(-70, Math.min(70, (s + n) / 2))],
-    zoom: Math.max(0.6, Math.min(4.2, Math.log2(170 / span) + 0.6)), duration: 1100 });
+  map.easeTo({ center: [e - w > 300 ? 10 : (w + e) / 2, Math.max(-70, Math.min(70, (s + n) / 2))],
+    zoom: Math.max(1.2, Math.min(4.6, Math.log2(170 / span) + 1.2)), pitch: 0, bearing: 0, duration: 1200 });
 }
 
-function mapLegend(a) {
-  const layer = maps && maps.layers.find((l) => l.id === state.variable);
-  if (!layer) return [];
-  const { blue_arm: blue, red_arm: red } = maps.colors;
-  const negative = layer.red_when_rising ? blue : red, positive = layer.red_when_rising ? red : blue;
-  const partial = a.period[0] !== layer.period[0] || a.period[1] !== layer.period[1];
-  return [
-    el("div", { class: "ramp", style: `background:linear-gradient(90deg, ${[...negative].reverse().concat(positive.slice(1)).join(", ")})` }),
-    el("div", { class: "ramp-labels" },
-      el("span", { text: `falling ${sig(layer.scale_max)} or more` }), el("span", { text: "no change" }),
-      el("span", { text: `rising ${sig(layer.scale_max)} ${layer.unit} per decade or more` })),
-    el("p", { class: "plot-caption", text:
-      `Change per decade in every grid cell, ${layer.period[0]}–${layer.period[1]}. Bright cells have a significant trend; faint cells could be chance. `
-      + `Across the mapped world, ${fixed(layer.percent_rising, 0)}% of the area has a significant rise and ${fixed(layer.percent_falling, 0)}% a significant fall.`
-      + (partial ? " The map always shows the full record, whatever years you choose above." : "") }),
-  ];
-}
-
-/* ---------- pickers ---------- */
+/* ---------- the guide: three questions, and worked examples ---------- */
 
 function openDialog(title, body) {
   const dialog = $("picker");
   dialog.replaceChildren(
     el("div", { class: "dialog-head" }, el("h2", { text: title }),
-      el("button", { type: "button", class: "slot-x", "aria-label": "Close", text: "×", onclick: () => dialog.close() })),
+      el("button", { type: "button", class: "btn quiet icon-only", "aria-label": "Close", onclick: () => dialog.close() }, icon("close"))),
     el("div", { class: "dialog-body" }, ...body));
   if (!dialog.open) dialog.showModal();
   return dialog;
 }
 
-function openVariables() {
-  const search = el("input", { type: "search", placeholder: "Search variables", "aria-label": "Search variables" });
-  const list = el("div", { class: "pick-list" });
-  const draw = () => {
-    const q = search.value.trim().toLowerCase();
-    list.replaceChildren(...cat.themes.flatMap((theme) => {
-      const vars = cat.variables.filter((v) => v.theme === theme.id
-        && (!q || `${v.label} ${v.definition}`.toLowerCase().includes(q)));
-      if (!vars.length) return [];
-      return [el("h3", {}, theme.name, el("small", { text: ` ${theme.about}` })),
-        ...vars.map((v) => el("button", { type: "button", class: `pick${v.id === state.variable ? " current" : ""}`,
-          onclick: () => { state.variable = v.id; $("picker").close(); update(); } },
-          el("strong", { text: v.label }), el("span", { text: v.definition }),
-          el("small", { text: `${v.unit} · from ${v.record_from}` })))];
-    }));
-  };
-  search.addEventListener("input", draw);
-  draw();
-  openDialog("Choose a variable", [search, list]);
-  search.focus();
-}
-
-function openRegions(target) {
-  pickingFor = target;
-  const search = el("input", { type: "search", placeholder: "Search countries and regions", "aria-label": "Search regions" });
-  const list = el("div", { class: "pick-list" });
-  const choose = (id) => { $("picker").close(); setRegion(target, id); };
-  const draw = () => {
-    const q = search.value.trim().toLowerCase();
-    const match = (r) => !q || r.name.toLowerCase().includes(q);
-    const group = (title, rows) => (rows.length ? [el("h3", { text: title }),
-      el("div", { class: "pick-grid" }, ...rows.map((r) => el("button", { type: "button", class: "pick small", title: r.about || "",
-        onclick: () => choose(r.id) }, el("strong", { text: r.name }), r.about ? el("span", { text: r.about }) : null)))] : []);
-    list.replaceChildren(
-      ...(q ? [] : [el("div", { class: "pick-grid" },
-        el("button", { type: "button", class: "pick small", onclick: () => choose("world") },
-          el("strong", { text: "The whole world" }), el("span", { text: "Every grid cell on Earth." })),
-        PREVIEW ? null : el("button", { type: "button", class: "pick small", onclick: () => { $("picker").close(); startDrawing(target); } },
-          el("strong", { text: "Draw a box on the map" }), el("span", { text: "Any rectangle of at least 1 degree." })))]),
-      ...group("Named regions", cat.regions.presets.filter(match)),
-      ...group("Continents", cat.regions.continents.filter(match)),
-      ...group("Countries", cat.regions.countries.filter(match)));
-  };
-  search.addEventListener("input", draw);
-  draw();
-  openDialog(target === "compare" ? "Compare with which region?" : "Choose a region", [search, list]);
-  search.focus();
-}
-
 function openGuide() {
   const answers = { interest: null, place: null };
+  const option = (label, onclick, ...more) => el("button", { type: "button", class: "pick", onclick }, el("strong", { text: label }), ...more);
   const step = (n) => {
-    if (n === 1) {
-      openDialog("1 of 3. What are you curious about?", [el("div", { class: "pick-grid" },
-        ...cat.interests.map((i) => el("button", { type: "button", class: "pick small",
-          onclick: () => { answers.interest = i.id; step(2); } }, el("strong", { text: i.question }))))]);
+    if (n === 0) {
+      openDialog("Guide", [
+        el("h3", { text: "How Canary works" }),
+        el("ol", { class: "how" },
+          el("li", { text: "Choose a variable and a region at the top, or click a country on the globe." }),
+          el("li", { text: "The globe shows where the variable is changing: bright cells have a significant trend, faint cells could be chance." }),
+          el("li", { text: "The panel gives the verdict for the region: the rate of change, its likely range, and whether it is significant." }),
+          el("li", { text: "Open the Place tab and click any point for that exact spot: vital signs, where its rain goes, the weather now." })),
+        el("h3", { text: "Not sure what to look at?" }),
+        el("button", { type: "button", class: "btn", text: "Answer three questions", onclick: () => step(1) }),
+        el("h3", { text: "Worked examples" }),
+        el("ul", { class: "examples" }, ...DEMOS.map((d) => el("li", {},
+          el("div", {}, el("strong", { text: d.title }), el("span", { text: d.blurb })),
+          el("button", { type: "button", class: "btn small", onclick: () => { $("picker").close(); playDemo(d); } },
+            icon("play"), "Play")))),
+      ]);
+    } else if (n === 1) {
+      openDialog("Guide", [
+        el("p", { class: "steps-note", text: "Question 1 of 3. What are you curious about?" }),
+        el("div", { class: "pick-grid" }, ...cat.interests.map((i) => option(i.question, () => { answers.interest = i.id; step(2); })))]);
     } else if (n === 2) {
-      openDialog("2 of 3. What kind of place?", [el("div", { class: "pick-grid" },
-        ...cat.place_kinds.map((k) => el("button", { type: "button", class: "pick small",
-          onclick: () => { answers.place = k.id; step(3); } }, el("strong", { text: k.name }))),
-        el("button", { type: "button", class: "pick small", onclick: () => { answers.place = null; step(3); } },
-          el("strong", { text: "No particular kind" })))]);
+      openDialog("Guide", [
+        el("p", { class: "steps-note", text: "Question 2 of 3. What kind of place?" }),
+        el("div", { class: "pick-grid" },
+          ...cat.place_kinds.map((k) => option(k.name, () => { answers.place = k.id; step(3); })),
+          option("No particular kind", () => { answers.place = null; step(3); }))]);
     } else {
       getJSON(`/api/suggest?interest=${answers.interest}${answers.place ? `&place=${answers.place}` : ""}`).then((picks) => {
-        openDialog("3 of 3. Start with one of these", [
-          el("p", { class: "plot-caption", text: "Pick a variable. You can choose the exact place next, or click it on the map." }),
-          el("div", { class: "pick-list" }, ...picks.map((p) => el("button", { type: "button", class: "pick",
-            onclick: () => { state.variable = p.id; $("picker").close(); update(); openRegions("region"); } },
-            el("strong", { text: p.label }), el("span", { text: p.definition }), el("small", { text: p.why }))))]);
+        openDialog("Guide", [
+          el("p", { class: "steps-note", text: "Question 3 of 3. Start with one of these variables. You choose the place next." }),
+          el("div", { class: "pick-list" }, ...picks.map((p) => option(p.label,
+            () => { state.variable = p.id; $("picker").close(); canary.showPane("trend"); update(); boxes.region.open(); },
+            el("span", { text: p.definition }), el("small", { text: p.why }))))]);
       });
     }
   };
-  step(1);
+  step(0);
 }
-
-/* ---------- demos: watch a case ---------- */
 
 function tourSteps(demo, a, b) {
   const v = a.variable;
@@ -571,7 +594,7 @@ function tourSteps(demo, a, b) {
     { target: "ask", text: `Step 1: choose what and where. Here: ${v.label.toLowerCase()} in ${nm(a)}${b ? `, compared with ${nm(b)}` : ""}.` },
     { target: "card-series", text: b
       ? "Step 2: look at the record. Each line is one region, shown against its own normal so that they share an axis."
-      : `Step 2: look at the record. Each point is one year's average for the whole region. The straight line is the trend.` },
+      : "Step 2: look at the record. Each point is one year's average for the whole region. The straight line is the trend." },
     { target: "verdict", text: a.significant
       ? `Step 3: read the verdict. ${a.headline}. “Significant” means a pattern this steady would rarely appear by chance.`
       : `Step 3: read the verdict. ${a.headline.replace(/ \(.*/, "")}. The line tilts, but years bounce around so much that chance could do this.` },
@@ -583,14 +606,18 @@ function tourSteps(demo, a, b) {
   } else {
     steps.push({ target: "card-numbers", text: `Step 4: check the evidence. Two different tests are run; here they ${a.tests.agree ? "agree" : "disagree"}. The 95% range shows how well the rate is pinned down.` });
   }
-  steps.push({ target: "card-map", text: "Then ask where. The map shows the trend in every grid cell: bright where it is significant, faint where it could be chance." });
+  steps.push({ target: "legend", text: "Then ask where. The globe shows the trend in every grid cell: bright where it is significant, faint where it could be chance." });
   steps.push({ target: "card-why", text: "Last, ask why. A trend says something is changing, not what causes it. Now try your own: change the variable or click a country." });
   return steps;
 }
 
 async function playDemo(demo) {
   endTour();
+  stopDrawing();
   Object.assign(state, { start: FIRST_YEAR, end: LAST_YEAR }, demo.state);
+  seriesView = "chart";
+  clicked = null;
+  canary.showPane("trend");
   await update();
   if (!results.a) return;
   const steps = tourSteps(demo, results.a, results.b);
@@ -600,16 +627,17 @@ async function playDemo(demo) {
     document.querySelectorAll(".tour-focus").forEach((n) => n.classList.remove("tour-focus"));
     const s = steps[index];
     const target = $(s.target);
+    if (target.tagName === "DETAILS") target.open = true;
     target.classList.add("tour-focus");
     target.scrollIntoView({ behavior: REDUCED_MOTION ? "auto" : "smooth", block: "center" });
     bar.replaceChildren(
       el("div", { class: "tour-text" }, el("strong", { text: `${demo.title} · ${index + 1} of ${steps.length}` }), el("p", { text: s.text })),
       el("div", { class: "tour-actions" },
-        el("button", { type: "button", class: "ghost", text: paused ? "Resume" : "Pause",
+        el("button", { type: "button", class: "btn small", text: paused ? "Resume" : "Pause",
           onclick: () => { paused = !paused; show(); } }),
-        el("button", { type: "button", class: "ghost", text: index === steps.length - 1 ? "Finish" : "Next",
+        el("button", { type: "button", class: "btn small", text: index === steps.length - 1 ? "Finish" : "Next",
           onclick: () => next() }),
-        el("button", { type: "button", class: "slot-x", "aria-label": "Close the walkthrough", text: "×", onclick: endTour })));
+        el("button", { type: "button", class: "btn small quiet icon-only", "aria-label": "Close the walkthrough", onclick: endTour }, icon("close"))));
     bar.hidden = false;
     clearTimeout(timer);
     if (!paused && !REDUCED_MOTION) timer = setTimeout(next, 7000);
@@ -626,44 +654,30 @@ function endTour() {
   document.querySelectorAll(".tour-focus").forEach((n) => n.classList.remove("tour-focus"));
 }
 
-/* ---------- events strip ---------- */
-
-async function renderStrip() {
-  const box = $("strip-body");
-  try {
-    const data = await getJSON("/api/briefing?ai=false");
-    const tiles = data.planet.map((t) => el("div", { class: "strip-card planet" },
-      el("div", { class: "stat-label", text: t.label }),
-      el("div", { class: "planet-row" },
-        el("div", { class: "stat-value" }, `${t.signed && t.value > 0 ? "+" : ""}${fixed(t.value, Math.abs(t.value) >= 100 ? 1 : 2)}`,
-          el("small", { text: ` ${t.unit}` })),
-        sparkline(t.series.x, t.series.y, `${t.label} over time`)),
-      el("div", { class: "stat-note", text: `${t.when}: ${t.note}` })));
-    const events = data.events.slice(0, 8).map((e) => el("div", { class: "strip-card" },
-      el("div", { class: "strip-kind" }, el("span", { class: `event-dot kind-${e.kind}` }), `${e.kind_label} · ${e.level}`),
-      el("strong", { text: e.title }),
-      el("div", { class: "stat-note", text: e.size }),
-      el("span", { class: "meter", role: "img", "aria-label": `Severity ${Math.round(e.severity * 100)} out of 100` },
-        el("i", { style: `width:${Math.max(4, Math.round(e.severity * 100))}%` })),
-      PREVIEW ? null : el("button", { type: "button", class: "ghost", text: "Investigate this place",
-        onclick: () => openExplore({ lat: e.lat, lon: e.lon, name: e.title, tab: "case" }) })));
-    box.replaceChildren(...tiles, ...events);
-    $("strip-note").textContent = `${data.event_total} natural events are being tracked (NASA EONET, USGS). `
-      + "Events are ranked by physical size, not harm. An event is not a trend: one storm says nothing about whether storms are changing.";
-  } catch (error) {
-    box.replaceChildren(el("p", { class: "plot-caption", text: `Live events could not load: ${error.message}` }));
-  }
-}
-
 /* ---------- update ---------- */
+
+function pointNote(a) {
+  const note = $("point-note");
+  const here = clicked && clicked.region === state.region && !state.compare ? clicked : null;
+  note.hidden = !here || PREVIEW;
+  if (note.hidden) return;
+  note.replaceChildren(`You clicked ${coordText(here.lat, here.lon)}. The verdict above is for all of ${nm(a)}. `,
+    el("button", { type: "button", class: "link", text: "Open that exact place",
+      onclick: () => canary.select(here.lat, here.lon, null, { fly: false }) }),
+    " for its vital signs, where its rain goes and the weather now.");
+}
 
 async function update() {
   const id = ++requestId;
+  const frame = frameNext;
+  frameNext = true;
   if (state.end - state.start + 1 < MIN_SPAN) state.end = Math.min(LAST_YEAR, state.start + MIN_SPAN - 1);
   if (state.compare === state.region) state.compare = null;
-  renderSentence();
+  renderQuery();
   writeHash();
-  document.querySelector(".results").classList.add("loading");
+  if (canary.state.trendId !== state.variable) canary.setTrend(state.variable, { keepSpin: true });
+  const box = document.querySelector(".results");
+  box.classList.add("loading");
   const ask = (region) => getJSON(`/api/investigate?variable=${state.variable}&region=${encodeURIComponent(region)}&start=${state.start}&end=${state.end}`);
   let a, b = null;
   try {
@@ -671,98 +685,55 @@ async function update() {
   } catch (error) {
     if (id !== requestId) return;
     results = { a: null, b: null };
-    document.querySelector(".results").classList.remove("loading");
+    box.classList.remove("loading");
+    box.classList.add("has-error");
     $("verdict").replaceChildren(el("div", { class: "error" },
       el("strong", { text: "This combination cannot be analysed. " }), error.message,
-      " Try another variable or region."));
+      " Choose another variable or region."));
     return;
   }
   if (id !== requestId) return;
   results = { a, b };
-  document.querySelector(".results").classList.remove("loading");
-  $("verdict").replaceChildren(...(b ? [el("div", { class: "verdict-pair" }, verdictCard(a, "a"), verdictCard(b, "b")), comparisonLine(a, b)]
-    : [verdictCard(a)]));
-  $("series-body").replaceChildren(...seriesCard(a, b));
+  box.classList.remove("loading", "has-error");
+  $("verdict").replaceChildren(...(b ? [verdictBlock(a, "a"), verdictBlock(b, "b"), comparisonLine(a, b)] : [verdictBlock(a)]));
+  pointNote(a);
+  renderSeries(a, b);
+  const yesNo = (r) => (r.significant ? `Yes, ${pEq(r.tests.mann_kendall.p)}` : `No, ${pEq(r.tests.mann_kendall.p)}`);
+  $("numbers-gist").textContent = b ? `${a.region.name}: ${a.significant ? "yes" : "no"} · ${b.region.name}: ${b.significant ? "yes" : "no"}` : yesNo(a);
   $("numbers-body").replaceChildren(...(b
     ? [el("h3", { class: "sub" }, el("i", { class: "key series-1" }), a.region.name), ...evidenceCard(a),
        el("h3", { class: "sub" }, el("i", { class: "key series-2" }), b.region.name), ...evidenceCard(b)]
     : evidenceCard(a)));
   $("why-body").replaceChildren(...whyCard(a));
-  $("map-legend").replaceChildren(...mapLegend(a));
-  showRegionsOnMap(a, b);
+  showRegionsOnMap(a, b, frame);
   renderScan(id);
-}
-
-/* ---------- Explore mode ---------- */
-
-let exploreLoaded = null;
-
-async function openExplore(place) {
-  endTour();
-  if (PREVIEW) { window.CANARY_PREVIEW.explore(); return; }
-  $("start").hidden = true;
-  $("explore").hidden = false;
-  document.documentElement.classList.add("exploring");
-  const placeLink = /^#-?\d/.test(location.hash); // a shared link to a place: Explore mode reads it on load
-  if (!exploreLoaded) {
-    if (!place && !placeLink) history.replaceState(null, "", "#explore");
-    exploreLoaded = import("./app.js");
-  }
-  await exploreLoaded;
-  await window.canary.ready;
-  window.canary.map.resize();
-  if (place) window.canary.select(place.lat, place.lon, place.name, { tab: place.tab });
-  else if (!/^#-?\d/.test(location.hash)) history.replaceState(null, "", "#explore");
-}
-
-function openStart() {
-  $("explore").hidden = true;
-  $("start").hidden = false;
-  document.documentElement.classList.remove("exploring");
-  writeHash();
-  if (map) map.resize();
 }
 
 /* ---------- start ---------- */
 
 async function main() {
-  $("go-explore").addEventListener("click", () => openExplore());
-  if ($("to-start")) $("to-start").addEventListener("click", openStart);
-  if (PREVIEW) { $("draw-box").hidden = true; $("map-hint").textContent = "Click a country to investigate it."; }
-  const hash = location.hash;
-  const wantsExplore = hash === "#explore" || /^#-?\d/.test(hash);
+  if (PREVIEW) $("theme-toggle").hidden = true; // the host page sets the theme
+  else initTheme($("theme-toggle"));
+  $("ask").addEventListener("submit", (event) => event.preventDefault());
 
-  [cat, maps] = await Promise.all([getJSON("/api/catalogue"), getJSON("maps/index.json").catch(() => null)]);
+  [cat, maps] = await Promise.all([getJSON("/api/catalogue"), getJSON("maps/index.json").catch(() => null), canary.ready]);
   readHash();
   if (!cat.variables.some((v) => v.id === state.variable)) state.variable = "temperature";
-
-  $("pick-variable").addEventListener("click", openVariables);
-  $("pick-region").addEventListener("click", () => openRegions("region"));
-  $("add-compare").addEventListener("click", () => openRegions("compare"));
+  buildQuery();
   $("open-guide").addEventListener("click", openGuide);
-  $("draw-box").addEventListener("click", () => startDrawing(state.compare ? pickingFor : "region"));
-  $("year-start").addEventListener("change", (e) => { state.start = Number(e.target.value); update(); });
-  $("year-end").addEventListener("change", (e) => { state.end = Number(e.target.value); update(); });
+  $("year-start").addEventListener("change", (e) => { state.start = Number(e.target.value); frameNext = false; update(); });
+  $("year-end").addEventListener("change", (e) => { state.end = Number(e.target.value); frameNext = false; update(); });
   $("picker").addEventListener("click", (e) => { if (e.target === $("picker")) $("picker").close(); });
-  $("demo-list").replaceChildren(...DEMOS.map((d) => el("article", { class: "card demo" },
-    el("h3", { text: d.title }), el("p", { text: d.blurb }),
-    el("button", { type: "button", class: "primary", text: "Watch (1 minute)", onclick: () => playDemo(d) }))));
+  window.addEventListener("canary-pane", (e) => { if (e.detail === "trend") writeHash(); });
+  document.addEventListener("keydown", (e) => { if (e.key === "Escape" && drawing) stopDrawing(); });
 
-  await initMap();
+  attachMap();
   getJSON("/api/countries").then((geo) => map.getSource("countries").setData(geo)).catch(() => {});
-  renderStrip();
-  if (wantsExplore) {
-    renderSentence();
-    openExplore();
-    update();
-  } else {
-    update();
-  }
+  canary.setTrend(state.variable, { keepSpin: true });
+  await update();
 }
 
+window.canaryStart = { state, update, playDemo, DEMOS, openGuide };
 main().catch((error) => {
-  document.querySelector(".results").replaceChildren(
-    el("div", { class: "error", text: `Canary could not start: ${error.message}` }));
+  $("verdict").replaceChildren(el("div", { class: "error" }, el("strong", { text: "Canary could not start. " }), error.message));
 });
-
-window.canaryStart = { state, update, playDemo, DEMOS, openExplore, openStart };

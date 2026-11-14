@@ -33,7 +33,7 @@ const state = {
   opacity: 0.85,
   base: "blue_marble",
   date: null, // null = latest available, else "YYYY-MM-DD"
-  wind: !REDUCED_MOTION,
+  wind: false,
   events: true,
   quakes: true,
   terrain: false,
@@ -42,6 +42,8 @@ const state = {
   streams: true,
   place: null, // {lat, lon, name}
   tab: "vitals",
+  pane: "trend", // which side-panel tab is showing: trend | place | today
+  trendId: "temperature", // the variable chosen in the header; its trend map is the default overlay
 };
 
 let catalogue = []; // NASA GIBS layers
@@ -114,10 +116,6 @@ const map = new maplibregl.Map({
     ],
   },
 });
-// Keep the globe clear of the layer dock on wide screens.
-const WIDE = window.matchMedia("(min-width: 821px)");
-const framePadding = () => ({ left: WIDE.matches ? 290 : 0, right: 0, top: 0, bottom: 0 });
-map.setPadding(framePadding());
 map.addControl(new maplibregl.NavigationControl({ visualizePitch: true }), "bottom-right");
 map.addControl(new maplibregl.ScaleControl({ unit: "metric" }), "bottom-right");
 
@@ -256,7 +254,7 @@ function renderLegend() {
         el("span", { text: `+${sig(l.scale_max)} ${l.unit} or more` })),
       el("p", { text: `${l.period[0]}–${l.period[1]}. A trend unlikely to be chance covers ${fixed(l.percent_significant, 1)}% of `
         + `the mapped area: ${fixed(l.percent_rising, 1)}% rising, ${fixed(l.percent_falling, 1)}% falling. Faint cells could be chance.` }),
-      el("p", { class: "fine", text: `${l.source}. Click any cell for its full chart.` })));
+      el("p", { class: "fine", text: `${l.source}. Click a country for its trend.` })));
   } else if (o && o.type === "alarm") {
     const swatches = el("div", { class: "steps" });
     const ramp = maps.colors.alarm;
@@ -273,7 +271,7 @@ function renderLegend() {
       el("p", { text: "Number of the ten vital signs whose long-term change is both unlikely to be chance and larger than "
         + `ordinary year-to-year swings. At least one: ${fixed(maps.alarm.percent_any, 1)}% of Earth's surface. `
         + `Three or more: ${fixed(maps.alarm.percent_three_plus, 1)}%.` }),
-      el("p", { class: "fine", text: "Click any cell to see which ones, and why." })));
+      el("p", { class: "fine", text: "Open the Place tab at any point to see which ones, and why." })));
   } else if (o && o.type === "gibs") {
     const l = layerInfo(o.key);
     const date = effectiveDate(l);
@@ -333,11 +331,18 @@ function check(checked, label, title, onchange) {
 
 const sameOverlay = (a, b) => (a === b) || Boolean(a && b && a.type === b.type && a.id === b.id && a.key === b.key);
 
-function setOverlay(overlay) {
+function setOverlay(overlay, { keepSpin = false } = {}) {
   state.overlay = overlay;
-  spinning = false;
+  if (!keepSpin) spinning = false;
   applyOverlay();
   renderDock();
+}
+
+/** Show the trend map of the variable chosen in the header. */
+function setTrend(id, options) {
+  state.trendId = id;
+  if (maps && maps.layers.some((l) => l.id === id)) setOverlay({ type: "trend", id }, options);
+  else renderDock();
 }
 
 function renderDock() {
@@ -354,10 +359,12 @@ function renderDock() {
 
   const sections = [];
   if (maps) {
-    sections.push(section("analysis", "Canary analysis, 1981–2025", true,
-      pick(null, "None", "Show the globe without a data overlay"),
+    const chosen = maps.layers.find((l) => l.id === state.trendId);
+    sections.push(section("analysis", "Canary analysis", true,
+      chosen ? pick({ type: "trend", id: chosen.id }, `Trend: ${chosen.label.toLowerCase()}`,
+        "The trend map of the variable chosen at the top") : null,
       pick({ type: "alarm" }, "Alarm map", "How many vital signs have left their normal range"),
-      ...maps.layers.filter((l) => l.vital).map((l) => pick({ type: "trend", id: l.id }, `${l.label} trend`, l.definition))));
+      pick(null, "None", "Show the globe without a data overlay")));
   }
   sections.push(section("live", "Happening now", true,
     check(state.wind, "Wind (live, animated)", "Wind from NASA's GEOS weather analysis", (v) => { state.wind = v; applyToggles(); }),
@@ -412,8 +419,26 @@ document.getElementById("dock-toggle").addEventListener("click", (e) => {
 
 /* ---------- place dossier ---------- */
 
-const welcome = document.getElementById("welcome");
-const placeBox = document.getElementById("place");
+const paneBoxes = {
+  trend: document.getElementById("trend"),
+  place: document.getElementById("place"),
+  today: document.getElementById("welcome"),
+};
+
+/** Switch the side panel between the trend, the selected place, and today's overview. */
+function showPane(name) {
+  state.pane = name;
+  for (const [key, box] of Object.entries(paneBoxes)) {
+    box.hidden = key !== name;
+    document.getElementById(`pane-tab-${key}`).setAttribute("aria-selected", String(key === name));
+  }
+  silence();
+  document.getElementById("panel").scrollTop = 0;
+  window.dispatchEvent(new CustomEvent("canary-pane", { detail: name }));
+}
+for (const key of Object.keys(paneBoxes)) {
+  document.getElementById(`pane-tab-${key}`).addEventListener("click", () => showPane(key));
+}
 const panes = {
   vitals: document.getElementById("pane-vitals"),
   terrain: document.getElementById("pane-terrain"),
@@ -474,19 +499,6 @@ function clearPlaceLayers() {
   if (map.getLayer("drainage")) map.removeLayer("drainage");
   if (map.getSource("drainage")) map.removeSource("drainage");
   cancelAnimationFrame(dropTimer);
-}
-
-function showWelcome() {
-  silence();
-  requestId++;
-  state.place = null;
-  placeBox.hidden = true;
-  welcome.hidden = false;
-  marker.remove();
-  popup.remove();
-  clearPlaceLayers();
-  history.replaceState(null, "", "#explore");
-  map.flyTo({ ...HOME, duration: 1500 });
 }
 
 function setDropAt(coordinate) {
@@ -569,13 +581,13 @@ async function select(lat, lon, name, { fly = true, tab = null } = {}) {
   state.place = { lat, lon, name };
   marker.setLngLat([lon, lat]).addTo(map);
   if (fly) map.flyTo({ center: [lon, lat], zoom: Math.max(map.getZoom(), 4), duration: 1600 });
-  welcome.hidden = true;
-  placeBox.hidden = false;
+  document.getElementById("place-empty").hidden = true;
+  document.getElementById("place-body").hidden = false;
+  showPane("place");
   clearPlaceLayers();
   const head = document.getElementById("place-head");
   const coords = el("p", { class: "place-coords", text: coordText(lat, lon) });
   head.replaceChildren(
-    el("button", { class: "back", type: "button", text: "← Overview", onclick: showWelcome }),
     el("h1", { text: name || "Selected location" }),
     coords);
   const loading = (text) => el("p", { class: "loading-note", text });
@@ -630,7 +642,9 @@ async function select(lat, lon, name, { fly = true, tab = null } = {}) {
 map.on("click", (e) => {
   const hits = map.queryRenderedFeatures(e.point, { layers: ["events"] });
   if (hits.length) { showEventPopup(hits[0], e.lngLat); return; }
-  select(e.lngLat.lat, e.lngLat.lng, null, { fly: false });
+  // The trend view decides what a click means (a country, a box corner, or a place).
+  if (window.canary.onMapClick) window.canary.onMapClick(e);
+  else select(e.lngLat.lat, e.lngLat.lng, null, { fly: false });
 });
 map.on("mouseenter", "events", () => { map.getCanvas().style.cursor = "pointer"; });
 map.on("mouseleave", "events", () => { map.getCanvas().style.cursor = ""; });
@@ -692,10 +706,6 @@ function fillWelcome() {
   if (maps) {
     view("Where is Earth changing most?", "The alarm map: places where several vital signs have left their normal range",
       () => { setOverlay({ type: "alarm" }); home(); });
-    view("Where is it warming?", `A real warming trend covers ${fixed(maps.layers[0].percent_rising, 0)}% of Earth's surface`,
-      () => { setOverlay({ type: "trend", id: "temperature" }); home(); });
-    view("Where is rain changing?", "Wetter in blue, drier in red; most of the map is too noisy to call",
-      () => { setOverlay({ type: "trend", id: "precipitation" }); home(); });
   }
   if (layerInfo("rain")) {
     view("What did satellites see?", "The latest day of rain and snowfall measured from orbit, under live wind",
@@ -753,8 +763,6 @@ let markReady;
 const ready = new Promise((resolve) => { markReady = resolve; });
 
 map.on("load", async () => {
-  // Phones start with the layer list folded away.
-  if (window.matchMedia("(max-width: 820px)").matches) document.getElementById("dock-toggle").click();
   renderDock();
 
   const [layersResult, mapsResult, eventsResult, windResult] = await Promise.allSettled([
@@ -783,4 +791,5 @@ map.on("load", async () => {
 });
 
 // For tests and the console.
-window.canary = { map, state, select, setOverlay, setTab, wind, thousands, ready };
+window.canary = { map, state, select, setOverlay, setTrend, setTab, showPane, wind, thousands, ready, onMapClick: null,
+  stopSpin: () => { spinning = false; } };
