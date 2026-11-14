@@ -3,85 +3,117 @@
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width, initial-scale=1">
-  <title>Canary: be an Earth trend detective</title>
+  <title>Canary</title>
+  <link rel="icon" href="logo.svg" type="image/svg+xml">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
   <link rel="stylesheet" href="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css">
   <link rel="stylesheet" href="style.css">
 </head>
 <body>
 
-  <!-- ===== Start page: investigate a variable in a region ===== -->
-  <main id="start" class="start">
-    <header class="s-top">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
+  <header class="app-header">
+    <div class="app-header-inner">
+      <button id="brand-home" class="brand" type="button" aria-label="Canary: trends">
+        <svg class="brand-mark" viewBox="0 0 32 32" aria-hidden="true">
+          <rect width="32" height="32" rx="6" fill="#14181f"/>
+          <path d="M5 25.5 27 19.5" stroke="#e8eaed" stroke-width="1.8" stroke-linecap="round"/>
+          <path d="M7.5 19.8l5.1-4.6a6.6 6.6 0 0 1 9.8-6.6l4.6-.2-3.3 3.5a6.6 6.6 0 0 1-10.1 8.7l-3.6 1z" fill="#ffd21f"/>
+          <circle cx="20.2" cy="10.5" r="1" fill="#14181f"/>
+        </svg>
         <span class="brand-name">Canary</span>
-        <span class="brand-tag">be an Earth trend detective</span>
+      </button>
+      <nav class="app-nav" aria-label="Sections">
+        <button id="nav-trends" type="button" aria-current="page">Trends</button>
+        <button id="nav-globe" type="button">Live globe</button>
+      </nav>
+      <div class="header-tools">
+        <button id="theme-toggle" class="btn quiet icon-only" type="button"></button>
       </div>
-      <button id="go-explore" class="ghost" type="button">Explore the live globe &rarr;</button>
-    </header>
+    </div>
+  </header>
 
-    <section id="ask" class="ask">
-      <h1 class="sentence">
-        Is
-        <button id="pick-variable" class="slot" type="button" aria-label="Choose a variable">air temperature</button>
-        changing in
-        <button id="pick-region" class="slot" type="button" aria-label="Choose a region">the whole world</button><span id="compare-slot"></span>?
-      </h1>
-      <p class="period">
-        Looking at
-        <label class="visually-hidden" for="year-start">First year</label><select id="year-start"></select>
-        to
-        <label class="visually-hidden" for="year-end">Last year</label><select id="year-end"></select>
-        <button id="add-compare" class="ghost" type="button">+ Compare with another region</button>
-        <button id="open-guide" class="ghost" type="button">Not sure what to look at? Answer 3 questions</button>
-      </p>
-      <p id="definition" class="definition"></p>
-    </section>
+  <!-- ===== Trends: investigate a variable in a region ===== -->
+  <main id="start" class="start">
+    <form id="ask" class="query" aria-label="What to investigate">
+      <div class="field">
+        <label for="pick-variable">Variable</label>
+        <div id="slot-variable"></div>
+      </div>
+      <div class="field">
+        <label for="pick-region">Region</label>
+        <div id="slot-region"></div>
+      </div>
+      <div class="field">
+        <label for="pick-compare">Compare with <span class="optional">(optional)</span></label>
+        <div id="slot-compare"></div>
+      </div>
+      <div class="field" role="group" aria-labelledby="years-label">
+        <span id="years-label" class="field-label">Years</span>
+        <div class="range">
+          <select id="year-start" aria-label="First year"></select>
+          <span aria-hidden="true">to</span>
+          <select id="year-end" aria-label="Last year"></select>
+        </div>
+      </div>
+      <button id="open-guide" class="btn" type="button">Help me choose</button>
+    </form>
+    <p id="definition" class="definition"></p>
 
     <div class="results">
-      <section id="verdict" aria-live="polite"><p class="loading-note">Reading NASA's records&hellip;</p></section>
+      <section id="verdict" class="verdict-wrap" aria-live="polite"><p class="loading-note">Reading NASA's records&hellip;</p></section>
 
-      <section class="cards">
-        <article id="card-series" class="card">
-          <h2>How it changed over time</h2>
-          <div id="series-body"></div>
+      <div class="cards">
+        <article id="card-series" class="figure"></article>
+        <article id="card-map" class="figure">
+          <header class="figure-head">
+            <div>
+              <h2 class="figure-title">Where it is changing</h2>
+              <p id="map-sub" class="figure-sub"></p>
+            </div>
+            <button id="draw-box" class="btn small" type="button">Draw a box</button>
+          </header>
+          <div class="figure-body">
+            <div class="map-frame"><div id="start-map"></div></div>
+            <div id="map-legend"></div>
+          </div>
+          <footer class="figure-foot"><span id="map-hint">Click a country to select it.</span></footer>
         </article>
-        <article id="card-map" class="card">
-          <h2>Where it is changing</h2>
-          <div class="map-frame"><div id="start-map"></div></div>
-          <p class="map-tools"><span id="map-hint">Click a country to investigate it, or draw a box.</span>
-            <button id="draw-box" class="ghost" type="button">Draw a box</button></p>
-          <div id="map-legend"></div>
-        </article>
-      </section>
+      </div>
 
-      <section class="cards">
-        <article id="card-numbers" class="card">
-          <h2>How much, and is it significant?</h2>
-          <div id="numbers-body"></div>
+      <div class="cards">
+        <article id="card-numbers" class="figure">
+          <header class="figure-head"><h2 class="figure-title">Is it significant?</h2></header>
+          <div id="numbers-body" class="figure-body"></div>
         </article>
-        <article id="card-why" class="card">
-          <h2>What might explain it</h2>
-          <div id="why-body"></div>
+        <article id="card-why" class="figure">
+          <header class="figure-head"><h2 class="figure-title">What might explain it</h2></header>
+          <div id="why-body" class="figure-body"></div>
         </article>
-      </section>
+      </div>
 
-      <section id="card-scan" class="card">
-        <h2 id="scan-title">What else is changing here?</h2>
-        <div id="scan-body"></div>
+      <section id="card-scan" class="figure">
+        <header class="figure-head">
+          <div>
+            <h2 id="scan-title" class="figure-title">Every variable in this region</h2>
+            <p id="scan-note" class="figure-sub"></p>
+          </div>
+        </header>
+        <div id="scan-body" class="figure-body flush"></div>
       </section>
     </div>
 
     <section class="block">
-      <h2>Watch a case</h2>
-      <p class="block-note">Three short walkthroughs on real data. Each one sets up an investigation and talks you through reading it.</p>
-      <div id="demo-list" class="demo-list"></div>
+      <h2>Worked examples</h2>
+      <p class="block-note">Three one-minute walkthroughs on real data. Each sets up an investigation and talks you through reading it.</p>
+      <ul id="demo-list" class="examples"></ul>
     </section>
 
     <section class="block">
       <h2>Happening now</h2>
-      <div id="strip-body" class="strip"><p class="loading-note">Loading the planet's indicators and live events&hellip;</p></div>
-      <p id="strip-note" class="plot-caption"></p>
+      <div id="strip-body"><p class="loading-note">Loading the planet's indicators and live events&hellip;</p></div>
+      <p id="strip-note" class="block-note"></p>
     </section>
 
     <footer class="s-foot">
@@ -100,11 +132,6 @@
     <div id="map" aria-label="Globe. Click anywhere to open that place's dossier."></div>
 
     <header class="topbar">
-      <div class="brand">
-        <span class="brand-mark" aria-hidden="true"></span>
-        <span class="brand-name">Canary</span>
-        <button id="to-start" class="brand-link" type="button">&larr; Investigate a trend</button>
-      </div>
       <form id="search" class="search" role="search" autocomplete="off">
         <input id="search-input" type="search" placeholder="Search for a place" aria-label="Search for a place">
         <ul id="search-results" class="search-results" hidden></ul>
