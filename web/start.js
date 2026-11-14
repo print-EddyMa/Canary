@@ -10,6 +10,8 @@ const WORLD = [[-180, 85.051129], [180, 85.051129], [180, -85.051129], [-180, -8
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const FIRST_YEAR = 1981, LAST_YEAR = 2025, MIN_SPAN = 15;
 const SERIES = ["#3987e5", "#d95926"];
+// Snapshot build: results are precomputed for the full record and built-in regions only.
+const PREVIEW = Boolean(window.CANARY_PREVIEW);
 
 const DEMOS = [
   { id: "arctic", title: "The Arctic is warming",
@@ -50,13 +52,14 @@ function regionName(id) {
 /* ---------- URL ---------- */
 
 function writeHash() {
-  if ($("start").hidden) return; // Explore mode owns the address while it is showing
+  if (PREVIEW || $("start").hidden) return; // Explore mode owns the address while it is showing
   const parts = ["investigate", state.variable, state.region, `${state.start}-${state.end}`];
   if (state.compare) parts.push("vs", state.compare);
   history.replaceState(null, "", `#${parts.join("/")}`);
 }
 
 function readHash() {
+  if (PREVIEW) return;
   const parts = decodeURIComponent(location.hash.slice(1)).split("/");
   if (parts[0] !== "investigate" || parts.length < 4) return;
   const [from, to] = parts[3].split("-").map(Number);
@@ -91,6 +94,7 @@ function renderSentence() {
     // Some records start later (satellite radiation data begin in 2001): grey out years before that.
     for (const option of select.options) option.disabled = id === "year-start" && Number(option.value) < v.record_from;
     select.value = id === "year-start" ? Math.max(state.start, Math.min(v.record_from, hi)) : state.end;
+    select.disabled = PREVIEW;
   }
 }
 
@@ -187,8 +191,8 @@ function tableDetails(a, b) {
     a.years.forEach((year, i) => table.append(el("tr", {}, el("td", { text: year }),
       el("td", { text: a.values[i] == null ? "" : fixed(a.values[i], v.decimals) }),
       b ? el("td", { text: b.values[b.years.indexOf(year)] == null ? "" : fixed(b.values[b.years.indexOf(year)], v.decimals) }) : null)));
-    details.append(el("div", { class: "table-scroll" }, table),
-      el("button", { type: "button", class: "ghost", text: "Download as CSV", onclick: () => downloadCsv(a, b) }));
+    details.append(el("div", { class: "table-scroll" }, table));
+    if (!PREVIEW) details.append(el("button", { type: "button", class: "ghost", text: "Download as CSV", onclick: () => downloadCsv(a, b) }));
   });
   return details;
 }
@@ -271,7 +275,7 @@ function whyCard(r) {
   const centre = r.region.bounds && r.region.kind !== "world"
     ? [(r.region.bounds[0] + r.region.bounds[2]) / 2, (r.region.bounds[1] + r.region.bounds[3]) / 2] : null;
   const out = [el("ul", { class: "why" }, ...items)];
-  if (centre) {
+  if (centre && !PREVIEW) {
     out.push(el("button", { type: "button", class: "ghost", text: "Have the detective investigate a place in this region",
       onclick: () => openExplore({ lat: centre[0], lon: centre[1], name: `Centre of ${nm(r)}`, tab: "case" }) }));
   }
@@ -323,14 +327,15 @@ function initMap() {
       projection: { type: "globe" },
       sky: { "atmosphere-blend": 0.6 },
       sources: {
-        base: { type: "raster", tileSize: 256, maxzoom: 8, attribution: "Imagery: NASA GIBS",
-          tiles: [`${GIBS}/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg`] },
+        // The snapshot build cannot load outside imagery, so it shows a plain globe.
+        base: { type: "raster", tileSize: 256, maxzoom: 8, attribution: PREVIEW ? "" : "Imagery: NASA GIBS",
+          tiles: PREVIEW ? [] : [`${GIBS}/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg`] },
         countries: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
         shapes: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
       },
       layers: [
-        { id: "space", type: "background", paint: { "background-color": "#0d0d0d" } },
-        { id: "base", type: "raster", source: "base", paint: { "raster-saturation": -0.8, "raster-brightness-max": 0.42 } },
+        { id: "space", type: "background", paint: { "background-color": PREVIEW ? "#20201e" : "#0d0d0d" } },
+        ...(PREVIEW ? [] : [{ id: "base", type: "raster", source: "base", paint: { "raster-saturation": -0.8, "raster-brightness-max": 0.42 } }]),
         { id: "country-hit", type: "fill", source: "countries", paint: { "fill-color": "#ffffff", "fill-opacity": 0 } },
         { id: "country-lines", type: "line", source: "countries", paint: { "line-color": "rgba(240,239,236,0.35)", "line-width": 0.6 } },
         { id: "country-hover", type: "line", source: "countries", filter: ["==", ["get", "code"], ""],
@@ -520,7 +525,7 @@ function openRegions(target) {
       ...(q ? [] : [el("div", { class: "pick-grid" },
         el("button", { type: "button", class: "pick small", onclick: () => choose("world") },
           el("strong", { text: "The whole world" }), el("span", { text: "Every grid cell on Earth." })),
-        el("button", { type: "button", class: "pick small", onclick: () => { $("picker").close(); startDrawing(target); } },
+        PREVIEW ? null : el("button", { type: "button", class: "pick small", onclick: () => { $("picker").close(); startDrawing(target); } },
           el("strong", { text: "Draw a box on the map" }), el("span", { text: "Any rectangle of at least 1 degree." })))]),
       ...group("Named regions", cat.regions.presets.filter(match)),
       ...group("Continents", cat.regions.continents.filter(match)),
@@ -640,7 +645,7 @@ async function renderStrip() {
       el("div", { class: "stat-note", text: e.size }),
       el("span", { class: "meter", role: "img", "aria-label": `Severity ${Math.round(e.severity * 100)} out of 100` },
         el("i", { style: `width:${Math.max(4, Math.round(e.severity * 100))}%` })),
-      el("button", { type: "button", class: "ghost", text: "Investigate this place",
+      PREVIEW ? null : el("button", { type: "button", class: "ghost", text: "Investigate this place",
         onclick: () => openExplore({ lat: e.lat, lon: e.lon, name: e.title, tab: "case" }) })));
     box.replaceChildren(...tiles, ...events);
     $("strip-note").textContent = `${data.event_total} natural events are being tracked (NASA EONET, USGS). `
@@ -694,11 +699,13 @@ let exploreLoaded = null;
 
 async function openExplore(place) {
   endTour();
+  if (PREVIEW) { window.CANARY_PREVIEW.explore(); return; }
   $("start").hidden = true;
   $("explore").hidden = false;
   document.documentElement.classList.add("exploring");
+  const placeLink = /^#-?\d/.test(location.hash); // a shared link to a place: Explore mode reads it on load
   if (!exploreLoaded) {
-    if (!place) history.replaceState(null, "", "#explore");
+    if (!place && !placeLink) history.replaceState(null, "", "#explore");
     exploreLoaded = import("./app.js");
   }
   await exploreLoaded;
@@ -720,7 +727,8 @@ function openStart() {
 
 async function main() {
   $("go-explore").addEventListener("click", () => openExplore());
-  $("to-start").addEventListener("click", openStart);
+  if ($("to-start")) $("to-start").addEventListener("click", openStart);
+  if (PREVIEW) { $("draw-box").hidden = true; $("map-hint").textContent = "Click a country to investigate it."; }
   const hash = location.hash;
   const wantsExplore = hash === "#explore" || /^#-?\d/.test(hash);
 

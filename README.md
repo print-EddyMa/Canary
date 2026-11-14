@@ -32,7 +32,12 @@ Without a key, case files and the daily brief are written by fixed rules and lab
 .venv/bin/python -m pytest -m "not network"
 .venv/bin/python -m canary.cube                 # fetch the global grids now (otherwise on first use; about 1 GB)
 .venv/bin/python -m canary.globalmap            # recompute the trend maps for all 26 variables
+.venv/bin/python -m canary.snapshot OUT_DIR     # a static copy of the start page for any file host
 ```
+
+The snapshot needs no backend: every variable is precomputed for the whole world, the named
+regions, the continents and the countries over its full record (about 20 MB). Custom year
+ranges, drawn boxes and Explore mode need the running app.
 
 ## How it answers the challenge
 
@@ -177,6 +182,7 @@ canary/
   detective.py          evidence tools, rule-based case files, number tracing
   llm.py                Claude investigator, skeptic, revision and daily brief
   api.py                FastAPI app, also serves web/
+  snapshot.py           static, backend-free copy of the start page
 web/
   start.js              the start page: question, verdict, cards, compare, guide, walkthroughs
   app.js                Explore mode: map, layers, legends, place selection
@@ -184,6 +190,7 @@ web/
   dossier.js            vital signs, land and water, right now
   charts.js             SVG line charts with crosshair and tooltip
   wind.js               wind particle animation
+  preview.js            answers API calls from files in a snapshot build
   maps/                 precomputed trend and alarm maps
 tests/
 reports/                research survey of data, tools and methods

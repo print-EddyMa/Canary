@@ -252,28 +252,18 @@ def _digits(x: float) -> int:
     return 0 if a == 0 else int(max(0, min(4, 1 - math.floor(math.log10(a)))))
 
 
-def scan(region: str, start: int | None = None, end: int | None = None) -> dict:
-    """Test every variable in a region and rank them: which are trending here?
+def rank(info: dict, analyses: list[dict], waiting: list[str]) -> dict:
+    """Rank analyses of several variables in one region, most strongly trending first.
 
     Testing many variables at once invites flukes, so significance here is
     judged after Benjamini-Hochberg false-discovery control across them.
     """
-    info = regions.parse(region)
-    rows, waiting = [], []
-    for variable in VARIABLES:
-        if not cube.ready(variable.id):
-            waiting.append(variable.label)
-            continue
-        try:
-            a = analyse(variable.id, info["id"], start, end, with_split=False, with_links=False)
-        except ValueError:
-            continue  # no data for this variable here
-        rows.append({
-            "id": variable.id, "label": variable.label, "unit": variable.unit, "theme": variable.theme,
-            "direction": a["trend"]["direction"], "per_decade": a["trend"]["per_decade"],
-            "signal_to_noise": a["trend"]["signal_to_noise"], "p": a["tests"]["mann_kendall"]["p"],
-            "period": a["period"],
-        })
+    rows = [{
+        "id": a["variable"]["id"], "label": a["variable"]["label"], "unit": a["variable"]["unit"],
+        "theme": a["variable"]["theme"], "direction": a["trend"]["direction"],
+        "per_decade": a["trend"]["per_decade"], "signal_to_noise": a["trend"]["signal_to_noise"],
+        "p": a["tests"]["mann_kendall"]["p"], "period": a["period"],
+    } for a in analyses]
     adjusted = trend.fdr_adjust([r["p"] for r in rows]) if rows else []
     for row, p_fdr in zip(rows, adjusted):
         row["p_adjusted"] = _clean(p_fdr)
@@ -281,6 +271,21 @@ def scan(region: str, start: int | None = None, end: int | None = None) -> dict:
     rows.sort(key=lambda r: (not r["significant"], -(r["signal_to_noise"] or 0)))
     return {"region": info, "variables": rows, "still_loading": waiting,
             "significant": sum(r["significant"] for r in rows), "tested": len(rows)}
+
+
+def scan(region: str, start: int | None = None, end: int | None = None) -> dict:
+    """Test every variable in a region and rank them: which are trending here?"""
+    info = regions.parse(region)
+    analyses, waiting = [], []
+    for variable in VARIABLES:
+        if not cube.ready(variable.id):
+            waiting.append(variable.label)
+            continue
+        try:
+            analyses.append(analyse(variable.id, info["id"], start, end, with_split=False, with_links=False))
+        except ValueError:
+            continue  # no data for this variable here
+    return rank(info, analyses, waiting)
 
 
 def suggest(interest: str | None, place_kind: str | None) -> list[dict]:

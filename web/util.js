@@ -76,6 +76,8 @@ export function statusIcon(level) {
 }
 
 export async function getJSON(url) {
+  // A snapshot build (no backend) answers API calls from precomputed files.
+  if (window.CANARY_PREVIEW) return window.CANARY_PREVIEW.getJSON(url);
   const response = await fetch(url);
   if (!response.ok) {
     let detail = response.statusText;
