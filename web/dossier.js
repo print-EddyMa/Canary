@@ -112,12 +112,17 @@ function vitalCard(v) {
   const chipText = v.status === "stable"
     ? STATUS_LABEL.stable
     : `${t.direction === "rising" ? "Rising" : "Falling"}, ${STATUS_LABEL[v.status]}`;
+  // At a glance: the name, its status, the record and one sentence. Everything else opens on request.
+  const more = el("div", { class: "vital-more-body" });
   const card = el("article", { class: `vital status-${v.status}` },
     el("div", { class: "vital-head" },
       el("h3", { class: "vital-title" }, v.label, " ", el("span", { class: "vital-unit", text: `(${v.unit})` })),
       el("span", { class: "chip" }, statusIcon(v.status), chipText)),
-    el("p", { class: "vital-definition", text: v.definition }),
     v.family ? vitalRecord(v) : null,
+    reading(v),
+    el("details", { class: "vital-more" }, el("summary", { text: "Chart and details" }), more));
+  more.append(
+    el("p", { class: "vital-definition", text: v.definition }),
     lineChart({
       x: v.years,
       y: v.annual_anomaly,
@@ -134,29 +139,28 @@ function vitalCard(v) {
     }),
     el("p", { class: "plot-caption",
       text: `Yearly difference from the 1991–2020 average (${fixed(v.baseline_mean, v.decimals)} ${v.unit}).` }),
-    reading(v),
   );
 
   if (v.suspects.length) {
     const s = v.suspects[0];
     const sense = s.r > 0 ? "rises and falls with" : "moves opposite to";
-    card.append(el("p", { class: "vital-extra",
+    more.append(el("p", { class: "vital-extra",
       text: `Suspect: ${sense} ${s.name} (r = ${signedFixed(s.r, 2)}, ${lagText(s.lag_months)}), `
         + `which accounts for about ${Math.round(s.variance_explained * 100)}% of the month-to-month swings.` }));
   }
   const ew = v.early_warning;
   if (ew) {
-    card.append(el("p", { class: "vital-extra", text: ew.warning
+    more.append(el("p", { class: "vital-extra", text: ew.warning
       ? `Warning sign: this record's memory and variability have both risen (${pEquals(ew.p_ar1)}), `
         + "the statistical pattern seen in systems losing stability."
       : `Stability check: no sign of lost stability (memory trend τ = ${signedFixed(ew.tau_ar1, 2)}, ${pEquals(ew.p_ar1)}).` }));
   }
 
-  if (v.forecast) card.append(outlookDetails(v));
+  if (v.forecast) more.append(outlookDetails(v));
 
   const listenButton = el("button", { type: "button", text: "Listen" });
   listenButton.addEventListener("click", () => listen(v.annual_anomaly, listenButton));
-  card.append(el("div", { class: "vital-actions" }, listenButton));
+  more.append(el("div", { class: "vital-actions" }, listenButton));
 
   const dl = el("dl");
   const add = (k, val) => dl.append(el("dt", { text: k }), el("dd", { text: val }));
@@ -175,7 +179,7 @@ function vitalCard(v) {
     + `${ew.surrogates} surrogates, ${ew.window_months / 12}-year window`);
   add("Source", `${v.source}, parameter ${v.parameter}`);
   if (v.note) add("Note", v.note);
-  card.append(el("details", {}, el("summary", { text: "Statistics" }), dl));
+  more.append(el("details", {}, el("summary", { text: "Statistics" }), dl));
 
   const tableDetails = el("details", {}, el("summary", { text: "Data table" }));
   tableDetails.addEventListener("toggle", () => {
@@ -190,7 +194,7 @@ function vitalCard(v) {
     });
     tableDetails.append(el("div", { class: "table-scroll" }, table));
   });
-  card.append(tableDetails);
+  more.append(tableDetails);
   return card;
 }
 
@@ -236,9 +240,6 @@ export function vitalsTab(data) {
   const vitals = [...data.vitals].sort((a, b) =>
     order[a.status] - order[b.status] || (b.trend.signal_to_noise ?? 0) - (a.trend.signal_to_noise ?? 0));
   return [
-    el("div", { class: "legend", "aria-label": "Chart legend" },
-      el("span", {}, el("i"), "Yearly average"),
-      el("span", {}, el("i", { class: "trend" }), "Trend (Theil-Sen)")),
     ...vitals.map(vitalCard),
     el("details", { class: "methods" }, el("summary", { text: "How to read this, and its limits" }),
       el("ul", {},

@@ -39,8 +39,9 @@ const state = {
   base: "blue_marble",
   date: null, // null = latest available, else "YYYY-MM-DD"
   wind: false,
-  events: true,
-  quakes: true,
+  // Live alerts mark what matters; the full event feeds stay one click away in Layers.
+  events: false,
+  quakes: false,
   terrain: false,
   borders: true,
   labels: true,
@@ -257,96 +258,36 @@ function gradient(stops) {
 }
 
 function renderLegend() {
+  // One title, one colour scale, the two ends. Sources live in the About box, not on the map.
   const box = document.getElementById("legend");
-  const parts = [];
   const o = state.overlay;
-
-  if (o && o.type === "trend") {
+  const parts = [];
+  const ends = (low, mid, high) => el("div", { class: "ramp-labels" }, el("span", { text: low }), el("span", { text: mid }), el("span", { text: high }));
+  if (state.mode === "trends" && o && o.type === "trend") {
     const l = maps.layers.find((x) => x.id === o.id);
     const fam = maps.families && maps.families[l.family];
-    const [lowEnd, highEnd] = fam ? (l.up === "b" ? [fam.a, fam.b] : [fam.b, fam.a]) : ["", ""];
-    parts.push(el("div", { class: "legend-block" },
-      el("h3", { text: `${l.label}: change per decade` }),
+    const [lowWord, highWord] = fam ? (l.up === "b" ? [fam.a, fam.b] : [fam.b, fam.a]) : ["", ""];
+    parts.push(el("h3", {}, l.label, el("small", { text: ` · ${l.unit} per decade, ${l.period[0]}–${l.period[1]}` })),
       el("div", { class: "ramp", style: `background:${gradient(l.stops)}` }),
-      el("div", { class: "ramp-labels" },
-        el("span", { text: `−${sig(l.scale_max)} or less` }), el("span", { text: "0" }),
-        el("span", { text: `+${sig(l.scale_max)} ${l.unit} or more` })),
-      fam ? el("div", { class: "ramp-labels" }, el("span", { text: lowEnd }), el("span", { text: highEnd })) : null,
-      el("p", { text: `${l.period[0]}–${l.period[1]}. A trend unlikely to be chance covers ${fixed(l.percent_significant, 1)}% of `
-        + `the mapped area: ${fixed(l.percent_rising, 1)}% rising, ${fixed(l.percent_falling, 1)}% falling. Faint cells could be chance.` }),
-      el("p", { class: "fine", text: `${l.source}. Click a country for its trend.` })));
-  } else if (o && o.type === "alarm") {
-    const swatches = el("div", { class: "steps" });
+      ends(`−${sig(l.scale_max)}`, "0", `+${sig(l.scale_max)}`),
+      el("div", { class: "ramp-labels muted" }, el("span", { text: lowWord }), el("span", { text: "faint: could be chance" }), el("span", { text: highWord })));
+  } else if (state.mode === "trends" && o && o.type === "alarm") {
     const ramp = maps.colors.alarm;
-    for (let n = 1; n <= maps.alarm.scale_max; n++) {
-      const t = (n - 1) / (maps.alarm.scale_max - 1) * (ramp.length - 1);
-      const lo = Math.floor(t);
-      const mixed = lo >= ramp.length - 1 ? ramp[ramp.length - 1]
-        : `color-mix(in srgb, ${ramp[lo]} ${Math.round((1 - (t - lo)) * 100)}%, ${ramp[lo + 1]})`;
-      swatches.append(el("span", {}, el("i", { style: `background:${mixed}` }), n === maps.alarm.scale_max ? `${n}+` : String(n)));
-    }
-    parts.push(el("div", { class: "legend-block" },
-      el("h3", { text: "Alarm map: vital signs outside their normal range" }),
-      swatches,
-      el("p", { text: "Number of the ten vital signs whose long-term change is both unlikely to be chance and larger than "
-        + `ordinary year-to-year swings. At least one: ${fixed(maps.alarm.percent_any, 1)}% of Earth's surface. `
-        + `Three or more: ${fixed(maps.alarm.percent_three_plus, 1)}%.` }),
-      el("p", { class: "fine", text: "Open the Place tab at any point to see which ones, and why." })));
+    parts.push(el("h3", { text: "Vital signs outside their normal range" }),
+      el("div", { class: "ramp", style: `background:${gradient(ramp)}` }), ends("1", "", `${maps.alarm.scale_max}+`));
   } else if (o && o.type === "gibs") {
     const l = layerInfo(o.key);
-    const date = effectiveDate(l);
-    parts.push(el("div", { class: "legend-block" },
-      el("h3", { text: l.label }),
-      l.legend ? el("img", { class: "gibs-legend", src: l.legend, alt: `Colour scale for ${l.label}` }) : null,
-      el("p", { text: l.about }),
-      el("p", { class: "fine", text: `${l.sensor}${date ? ` · ${date}` : ""}${l.period && l.period !== "P1D" && l.timed ? " · multi-day product" : ""}` })));
-  }
-  if (o) {
-    const slider = el("input", { type: "range", min: 0.2, max: 1, step: 0.05, value: state.opacity, "aria-label": "Overlay opacity" });
-    slider.addEventListener("input", () => {
-      state.opacity = Number(slider.value);
-      if (map.getLayer("overlay")) map.setPaintProperty("overlay", "raster-opacity", state.opacity);
-      if (trendField && state.overlay && state.overlay.type === "trend") trendField.setOpacity(state.opacity);
-    });
-    parts.push(el("label", { class: "opacity" }, "Opacity", slider));
-  }
-
-  if (state.events || state.quakes) {
-    const kinds = EVENT_KINDS.filter(([k]) => (k === "earthquakes" ? state.quakes : state.events))
-      .filter(([k]) => eventFeatures.some((f) => f.properties.kind === k));
-    if (kinds.length) {
-      parts.push(el("div", { class: "legend-block" },
-        el("h3", { text: "Happening now" }),
-        el("div", { class: "steps wrap" }, ...kinds.map(([, label, colour]) =>
-          el("span", {}, el("i", { class: "round", style: `background:${colour}` }), label)))));
-    }
-  }
-  if (state.mode === "weather" && weatherField && weatherField.meta) {
+    parts.push(el("h3", { text: l.label }),
+      l.legend ? el("img", { class: "gibs-legend", src: l.legend, alt: `Colour scale for ${l.label}` }) : null);
+  } else if (state.mode === "weather" && weatherField && weatherField.meta) {
     const w = state.weather;
-    const blocks = [];
-    if (w.temp) blocks.push(el("div", {}, el("div", { class: "ramp", style: `background:${gradient(thermalStops())}` }),
-      el("div", { class: "ramp-labels" }, el("span", { text: "−40 °C" }), el("span", { text: "0" }), el("span", { text: "+40 °C" }))));
-    if (w.precip) blocks.push(el("div", { class: "steps wrap" }, ...[["0.1", RAIN[0]], ["1", RAIN[1]], ["5", RAIN[2]], ["20 mm/h", RAIN[3]]]
-      .map(([label, colour]) => el("span", {}, el("i", { style: `background:${colour}` }), label))));
-    if (w.cloud) blocks.push(el("p", { text: "White: cloud, from thin to overcast. Grey where it is night." }));
-    parts.push(el("div", { class: "legend-block" },
-      el("h3", { text: "Weather, last 24 hours" }), ...blocks,
-      el("p", { class: "fine", text: `${weatherField.meta.source}. Each hour is an average; the animation blends between hours.` })));
-  }
-  if (state.mode === "satellite" && loop.sats.length) {
-    parts.push(el("div", { class: "legend-block" },
-      el("h3", { text: "Satellite loop, last 3 hours" }),
-      el("p", { text: loop.sats.map((s) => s.label).join(", ") + ". A new image every 10 minutes." }),
-      el("p", { class: "fine", text: "NOAA GOES and JMA Himawari, served by NASA GIBS. Europe and Africa are not covered." })));
-  }
-  if (state.wind && wind.grid) {
-    parts.push(el("div", { class: "legend-block" },
-      el("h3", { text: "Wind at 10 m" }),
-      el("div", { class: "steps wrap" },
-        el("span", {}, el("i", { class: "streak s1" }), "under 5 m/s"),
-        el("span", {}, el("i", { class: "streak s2" }), "5–12"),
-        el("span", {}, el("i", { class: "streak s3" }), "over 12")),
-      el("p", { class: "fine", text: `NASA GEOS-FP analysis, ${wind.grid.time.slice(0, 16).replace("T", " ")} UTC` })));
+    parts.push(el("h3", {}, "Weather", el("small", { text: " · last 24 hours" })));
+    if (w.temp) parts.push(el("div", { class: "ramp", style: `background:${gradient(thermalStops())}` }), ends("−40 °C", "0", "+40 °C"));
+    if (w.precip) parts.push(el("div", { class: "ramp", style: `background:${gradient(RAIN)}` }), ends("0.1", "rain and snow, mm/h", "20"));
+    if (w.cloud) parts.push(el("div", { class: "ramp", style: "background:linear-gradient(90deg, rgba(255,255,255,0.15), #ffffff)" }), ends("thin", "cloud", "overcast"));
+  } else if (state.mode === "satellite" && loop.sats.length) {
+    parts.push(el("h3", {}, "Satellite", el("small", { text: " · last 3 hours" })),
+      el("p", { class: "legend-line", text: "True colour by day, infrared at night" }));
   }
   box.replaceChildren(...parts);
   box.hidden = parts.length === 0;
@@ -1035,6 +976,14 @@ async function loadDashboard() {
 
 function fillWelcome() {
   const views = document.getElementById("views");
+  if (!views) {
+    const demos = document.getElementById("demos");
+    for (const demo of DEMOS) {
+      demos.append(el("li", {}, el("button", { type: "button", onclick: () => select(demo.lat, demo.lon, demo.name) },
+        demo.name, el("small", { text: demo.note }))));
+    }
+    return;
+  }
   const view = (title, note, action) =>
     views.append(el("li", {}, el("button", { type: "button", onclick: action }, title, el("small", { text: note }))));
   const home = () => map.flyTo({ ...HOME, center: map.getCenter(), duration: 1200 });

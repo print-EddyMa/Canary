@@ -73,6 +73,34 @@ reads the value under the cursor (for example "+0.42 °C per decade · significa
 "18.0 °C · cloud 100% · dry · wind 9 m/s from S"). A timeline plays, pauses and scrubs the weather
 and the satellite loop; Space plays and pauses, the arrow keys step.
 
+### Live alerts
+
+The **Live** tab is built as alerts are reported. The server reads five feeds every five minutes
+and pushes each new alert to open browsers over a server-sent event stream
+(`/api/alerts/stream`); the alert slides into the feed, a banner appears over the globe, and a
+ring pulses where it happened.
+
+| Feed | What it adds |
+|---|---|
+| GDACS (UN and European Commission) | Orange and red alerts: cyclones, earthquakes, floods, droughts, volcanoes, wildfires |
+| USGS | Significant earthquakes of the past week |
+| US National Weather Service | Severe and extreme warnings (tornado, hurricane, flash-flood emergency, blizzard) |
+| Carbon Mapper | Methane plumes above 1,000 kg per hour seen from orbit: super-emitters |
+| NASA EONET | Storms, floods and volcanic eruptions opened in the last two days |
+
+Each alert carries a severity on Canary's status scale (critical, serious, watch) with its
+shape and colour, the place, how long ago, and the full report.
+
+### Charts
+
+The main chart is the one climate assessments use: each year's difference from the 1991–2020
+normal as a bar in the variable's colour family, the Theil-Sen trend, and its 95% range drawn as
+a fan around the line, with the rate and the record year labelled on the chart. **Shift** shows
+how the distribution of years moved, first fifteen years against the last fifteen. **Every
+variable** is a forest plot: each variable's change per decade in units of its own year-to-year
+variability, with its 95% range, so rain and temperature share one axis. Sources, methods and
+tests sit behind the ⓘ button and the folds below the chart.
+
 ### Search everything
 
 `⌘K` or `Ctrl K` (or `/`) opens a command palette over every variable, region and country, any

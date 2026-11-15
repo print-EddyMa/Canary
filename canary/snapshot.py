@@ -27,7 +27,7 @@ from . import catalogue, cube, investigate, regions
 WEB = Path(__file__).resolve().parent.parent / "web"
 MAPLIBRE = "https://unpkg.com/maplibre-gl@5.6.0/dist"
 SCRIPTS = ("start.js", "app.js", "charts.js", "util.js", "ui.js", "record.js", "dossier.js", "dashboard.js",
-           "wind.js", "fields.js", "command.js", "preview.js")
+           "wind.js", "fields.js", "command.js", "live.js", "science.js", "preview.js")
 # The example places offered in the Place pane (web/app.js DEMOS).
 PLACES = [(78.2, 15.6, "Svalbard, Arctic Norway"), (0.0, -150.0, "Equatorial Pacific"),
           (39.74, -104.99, "Denver, Colorado"), (-1.28, 36.82, "Nairobi, Kenya")]
@@ -63,6 +63,9 @@ def write_data(out: Path) -> None:
             }
             print(f"  place: {name}", flush=True)
         _dump(out / "data/places.json", places)
+        from .sources import alerts
+        alerts.poll()
+        _dump(out / "data/alerts.json", get("/api/alerts"))
         # The last 24 hours of weather, as served when the snapshot was made.
         meta = get("/api/weather")
         if meta.get("status") == "ready":

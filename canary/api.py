@@ -11,16 +11,16 @@ from pathlib import Path
 
 import anthropic
 import httpx
-from fastapi import FastAPI, HTTPException, Query
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse, Response
+from fastapi.responses import FileResponse, Response, StreamingResponse
 from fastapi.staticfiles import StaticFiles
 
 import json
 
 from . import __version__, briefing, catalogue, cube, detective, investigate, llm, palette, regions, terrain
 from .chart import place_chart
-from .sources import events, geos, gibs, indices, weather
+from .sources import alerts, events, geos, gibs, indices, weather
 from .sources.cache import cached_text
 from .stats import forecast
 from .vitals import VITALS
@@ -33,6 +33,7 @@ async def _lifespan(_: FastAPI):
     # Fetch any global grids not on disk yet, without holding up the first page.
     cube.warm_in_background()
     weather.refresh_in_background()
+    alerts.start()
     yield
 
 
@@ -180,6 +181,38 @@ def wind() -> dict:
         return geos.wind_grid()
     except (httpx.HTTPError, ValueError, KeyError) as exc:
         raise HTTPException(502, f"NASA GEOS did not answer: {exc}") from exc
+
+
+@app.get("/api/alerts")
+def alert_list() -> dict:
+    """Live alerts: disasters, extreme weather warnings, significant earthquakes, methane super-emitters."""
+    alerts.start()
+    return alerts.current()
+
+
+@app.get("/api/alerts/stream")
+async def alert_stream(request: Request) -> StreamingResponse:
+    """Server-sent events: each new alert is pushed the moment a feed reports it."""
+    import asyncio
+    import time as _time
+
+    alerts.start()
+
+    async def events_out():
+        last = _time.time()
+        yield "retry: 15000\n\n"
+        while not await request.is_disconnected():
+            fresh = alerts.since(last)
+            if fresh:
+                last = max(a["first_seen"] for a in fresh)
+                for a in fresh:
+                    yield f"event: alert\ndata: {json.dumps(a)}\n\n"
+            else:
+                yield ": still here\n\n"
+            await asyncio.sleep(10)
+
+    return StreamingResponse(events_out(), media_type="text/event-stream",
+                             headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
 @app.get("/api/weather")

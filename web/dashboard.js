@@ -12,14 +12,12 @@ function planetTile(t) {
   const decimals = Math.abs(t.value) >= 100 ? 1 : 2;
   const rate = t.trend_per_decade == null ? null
     : `${t.trend_per_decade > 0 ? "+" : "−"}${sig(t.trend_per_decade)} ${t.unit} per decade since ${t.trend_since}`;
-  return el("div", { class: "stat planet" },
+  return el("div", { class: "stat planet", title: `${t.when}: ${t.note} (${t.source})` },
     el("div", { class: "stat-label", text: t.label }),
     el("div", { class: "planet-row" },
       el("div", { class: "stat-value" }, `${sign}${fixed(t.value, decimals)}`, el("small", { text: ` ${t.unit}` })),
       sparkline(t.series.x, t.series.y, `${t.label}, ${t.series.x[0]} to ${Math.floor(t.series.x[t.series.x.length - 1])}`)),
-    el("div", { class: "stat-note", text: `${t.when}: ${t.note}` }),
-    rate ? el("div", { class: "stat-note", text: rate }) : null,
-    el("div", { class: "stat-source", text: t.source }));
+    rate ? el("div", { class: "stat-note", text: rate }) : null);
 }
 
 function writtenBy(kind, aiAvailable) {
@@ -29,42 +27,16 @@ function writtenBy(kind, aiAvailable) {
 
 /** hooks: { flyTo(lat, lon), investigate(event), showEvent(event) } */
 export function renderDashboard(box, data, hooks) {
-  const date = new Date(`${data.date}T00:00:00Z`).toLocaleDateString("en-GB",
-    { day: "numeric", month: "long", year: "numeric", timeZone: "UTC" });
-  const parts = [
-    el("h1", { text: "Earth today" }),
-    el("p", { class: "place-coords", text: `${date} · ${data.event_total} events being tracked` }),
-  ];
+  // The planet's vital indicators, then the brief. Live events have their own feed above.
+  const parts = [];
   if (data.planet.length) parts.push(el("div", { class: "stats" }, ...data.planet.map(planetTile)));
-
   if (data.brief.length) {
-    parts.push(el("h2", { text: "The brief" }));
-    parts.push(el("ul", { class: "brief" }, ...data.brief.map((item) => {
+    parts.push(el("ul", { class: "brief" }, ...data.brief.filter((item) => !/storm|quake|fire|volcan|event/i.test(item.topic)).map((item) => {
       const body = [el("span", { class: "brief-topic", text: item.topic }), el("span", { text: item.text })];
       return el("li", {}, item.lat == null ? el("div", { class: "brief-item" }, ...body)
         : el("button", { type: "button", class: "brief-item", title: "Show on the globe",
             onclick: () => hooks.flyTo(item.lat, item.lon) }, ...body));
     })));
-    parts.push(el("p", { class: "plot-caption", text: writtenBy(data.brief_written_by, data.ai_available) }));
-  }
-
-  if (data.events.length) {
-    parts.push(el("h2", { text: "Biggest events now" }));
-    parts.push(el("ol", { class: "ranked" }, ...data.events.slice(0, 8).map((e) =>
-      el("li", {},
-        el("button", { type: "button", class: "ranked-main", title: "Show on the globe", onclick: () => hooks.showEvent(e) },
-          el("span", { class: `event-dot kind-${e.kind}` }),
-          el("span", { class: "event-text" },
-            el("strong", { text: e.title }),
-            el("small", { text: `${e.kind_label} · ${e.level} · ${e.size}` }),
-            el("span", { class: "meter", role: "img", "aria-label": `Severity ${Math.round(e.severity * 100)} out of 100` },
-              el("i", { style: `width:${Math.max(4, Math.round(e.severity * 100))}%` })))),
-        el("button", { type: "button", class: "ranked-go", onclick: () => hooks.investigate(e) }, "Investigate")))));
-    parts.push(el("p", { class: "plot-caption",
-      text: "Ranked by physical size (magnitude, wind speed, area burned), not by harm: the ranking knows nothing about who lives nearby." }));
-  }
-  if (data.errors && data.errors.length) {
-    parts.push(el("p", { class: "plot-caption", text: `Some sources did not answer: ${data.errors.join("; ")}` }));
   }
   box.replaceChildren(...parts);
 }

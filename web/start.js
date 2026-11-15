@@ -4,8 +4,10 @@
 
 import "./app.js"; // the globe, its layers, the Place and Today panes
 import { compareChart, lineChart } from "./charts.js";
-import { claimColour, meters, record } from "./record.js";
+import { claimColour, evidenceBar, rangeBar, record } from "./record.js";
+import { anomalyChart, forestPlot, shiftChart } from "./science.js";
 import { addGroup, bindKeys, open as openPalette } from "./command.js";
+import { initLive } from "./live.js";
 import { combobox, copyText, icon, initTheme, sortableTable, toast, viewTabs } from "./ui.js";
 import { coordText, el, fixed, getJSON, sig, thousands } from "./util.js";
 
@@ -139,47 +141,43 @@ function renderQuery() {
 
 /* ---------- verdict ---------- */
 
-/** The record of one investigation: one cell per year, coloured by its difference from normal. */
-function recordOf(r, size = "full") {
-  return record({
-    v: r.variable, years: r.years, size,
-    anomaly: r.values.map((x) => (x == null ? null : x - r.normal)),
-    trend: [r.trend.line[0] - r.normal, r.trend.line[1] - r.normal], strong: r.significant,
-    more: r.significant ? 0 : r.more_years_needed || 0,
-    label: `${r.variable.label} in ${nm(r)}: one cell per year from ${r.period[0]} to ${r.period[1]}, coloured by the difference from the 1991–2020 normal`,
-  });
-}
-
-function keyFigures(r) {
+/** Three numbers under the chart: the rate with its range, the total change, the evidence. */
+function statsRow(r) {
   const v = r.variable, t = r.trend, d = digits(t.per_decade);
-  const item = (label, value, note, colour) => el("div", {}, el("dt", { text: label }),
-    el("dd", { class: "value", style: colour ? `color:${colour}` : null, text: value }), el("dd", { class: "note", text: note }));
-  return el("dl", { class: "keyfigures" },
-    item("Rate of change", signedFix(t.per_decade, d), `${v.unit} per decade`, claimColour(v, t.per_decade, r.significant)),
-    item("95% range", `${signedFix(t.range_per_decade[0], d)} to ${signedFix(t.range_per_decade[1], d)}`, "likely range of the true rate"),
-    item(`Total, ${r.period[0]}–${r.period[1]}`, signedFix(t.total_change, digits(t.total_change)),
-      t.percent_change == null ? v.unit : `${v.unit} (${signedFix(t.percent_change, 0)}%)`, claimColour(v, t.total_change, r.significant)),
-    item("Against normal swings", t.signal_to_noise == null ? "n/a" : `${t.signal_to_noise.toFixed(1)}×`, "the usual year-to-year swing"));
+  return el("div", { class: "stats-row" },
+    el("div", { class: "stat-cell" },
+      el("span", { class: "stat-k", text: "Rate per decade" }),
+      el("span", { class: "stat-v", style: `color:${claimColour(v, t.per_decade, r.significant)}` }, signedFix(t.per_decade, d), el("small", { text: ` ${v.unit}` })),
+      rangeBar(v, t.per_decade, t.range_per_decade, r.significant, true),
+      el("span", { class: "stat-n", text: `95%: ${signedFix(t.range_per_decade[0], d)} to ${signedFix(t.range_per_decade[1], d)}` })),
+    el("div", { class: "stat-cell" },
+      el("span", { class: "stat-k", text: `Change since ${r.period[0]}` }),
+      el("span", { class: "stat-v", style: `color:${claimColour(v, t.total_change, r.significant)}` }, signedFix(t.total_change, digits(t.total_change)),
+        el("small", { text: ` ${v.unit}` })),
+      el("span", { class: "stat-n", text: t.signal_to_noise == null ? "" : `${t.signal_to_noise.toFixed(1)}× normal swing` })),
+    el("div", { class: "stat-cell" },
+      el("span", { class: "stat-k", text: "Evidence" }),
+      el("span", { class: "stat-v" }, el("span", { class: `tag ${r.significant ? "is-yes" : "is-no"}` }, el("i"), r.significant ? "Significant" : "Could be chance")),
+      evidenceBar(v, r.tests.mann_kendall.p, r.significant, t.per_decade, true),
+      el("span", { class: "stat-n", text: pEq(r.tests.mann_kendall.p) })));
 }
 
 function verdictBlock(r, key) {
   const v = r.variable, up = r.trend.direction === "rising";
   const title = r.significant
     ? [`${v.label} in ${nm(r)} is ${up ? "rising" : "falling"} by `, el("mark", { text: rateText(r) })]
-    : [`${v.label} in ${nm(r)} shows no significant trend`];
-  const detail = r.significant ? r.detail
-    : r.detail.replace(/^Not significant\. /, `Not significant. The trend line tilts ${up ? "up" : "down"} by ${rateText(r)}. `);
+    : [`${v.label} in ${nm(r)}: no significant trend`];
   return el("article", { class: `verdict ${r.significant ? "is-significant" : "not-significant"}` },
     key ? el("p", { class: "verdict-region" }, el("i", { class: `key series-${key === "a" ? 1 : 2}` }), r.region.name)
       : el("p", { class: "question", text: `Is ${v.label.toLowerCase()} changing in ${nm(r)}?` }),
     el(key ? "h2" : "h1", { class: "verdict-headline" }, ...title),
-    el("div", { class: "record-wrap" }, recordOf(r),
-      el("p", { class: "record-note", text: `One cell per year: its difference from the 1991–2020 normal. `
-        + `Line: the trend${r.significant ? "" : ", dashed because it could be chance"}.`
-        + (!r.significant && r.more_years_needed ? ` Dashed cells: about ${r.more_years_needed} more year${r.more_years_needed > 1 ? "s" : ""} of data would settle it.` : "") })),
-    keyFigures(r),
-    meters(v, { p: r.tests.mann_kendall.p, significant: r.significant, rate: r.trend.per_decade, range: r.trend.range_per_decade }),
-    el("p", { class: "verdict-detail", text: detail }));
+    key ? statsRow(r) : null);
+}
+
+/** Kept for the header glyph: the record as nine coloured cells. */
+function recordOf(r, size = "glyph") {
+  return record({ v: r.variable, years: r.years, size,
+    anomaly: r.values.map((x) => (x == null ? null : x - r.normal)), label: `${r.variable.label}: the record` });
 }
 
 function comparisonLine(a, b) {
@@ -315,36 +313,52 @@ function openCite() {
 
 function copyLink() { copyText(location.href, "Link to this view copied"); }
 
-function renderSeries(a, b) {
+function toolButton(name, label, onclick) {
+  return el("button", { type: "button", class: "tool", "aria-label": label, title: label, onclick }, icon(name));
+}
+
+/** What the chart shows and where the data come from, on request. */
+function openAbout(a) {
   const v = a.variable;
+  openDialog("About this result", [
+    el("dl", { class: "about" },
+      el("dt", { text: "Variable" }), el("dd", { text: `${v.label}: ${v.definition}` }),
+      el("dt", { text: "Region" }), el("dd", { text: `${a.region.name}, area-weighted average of ${thousands(a.region.cells)} grid cells` }),
+      el("dt", { text: "Data" }), el("dd", { text: `${v.source}, parameter ${v.parameter}, yearly means ${a.period[0]}–${a.period[1]}` }),
+      el("dt", { text: "Normal" }), el("dd", { text: `1991–2020 average: ${fixed(a.normal, v.decimals)} ${v.unit}` }),
+      el("dt", { text: "Trend" }), el("dd", { text: "Theil-Sen slope (the median of all pairwise slopes), with its 95% range shaded as a fan around the line" }),
+      el("dt", { text: "Test" }), el("dd", { text: "Mann-Kendall, corrected for memory in the data; a least-squares t-test as a second opinion" }),
+      v.caution ? el("dt", { text: "Caution" }) : null, v.caution ? el("dd", { text: v.caution }) : null),
+  ]);
+}
+
+function renderSeries(a, b) {
   const body = el("div", { class: "figure-body" });
+  const views = b ? [{ id: "chart", label: "Change" }, { id: "table", label: "Table" }]
+    : [{ id: "chart", label: "Change" }, { id: "shift", label: "Shift" }, { id: "table", label: "Table" }];
+  if (!views.some((x) => x.id === seriesView)) seriesView = "chart";
   const draw = (view) => {
     seriesView = view;
-    body.replaceChildren(...(view === "table" ? seriesTable(a, b) : seriesChart(a, b)));
+    if (view === "table") body.replaceChildren(...seriesTable(a, b));
+    else if (view === "shift") body.replaceChildren(shiftChart(a));
+    else body.replaceChildren(...(b ? seriesChart(a, b) : [anomalyChart(a)]));
   };
   $("card-series").replaceChildren(
     el("header", { class: "figure-head" },
-      el("div", {},
-        el("h2", { class: "figure-title", text: b ? `${v.label}: ${a.region.name} and ${b.region.name}` : `${v.label}, ${nm(a)}` }),
-        el("p", { class: "figure-sub", text: b
-          ? `Yearly difference from each region's own 1991–2020 average, ${a.period[0]}–${a.period[1]}, in ${v.unit}`
-          : `Yearly average, ${a.period[0]}–${a.period[1]}, in ${v.unit}` })),
-      viewTabs("View", [{ id: "chart", label: "Chart" }, { id: "table", label: "Table" }], draw, seriesView)),
-    body,
-    el("footer", { class: "figure-foot" },
-      el("p", {}, el("strong", { text: `${v.label}. ` }), `${v.definition} `,
-        `Source: ${v.source}, parameter ${v.parameter}`
-        + (b ? "." : `; area-weighted average of ${thousands(a.region.cells)} grid cells.`)),
-      el("div", { class: "actions" },
-        PREVIEW ? null : el("button", { type: "button", class: "btn small", onclick: () => downloadCsv(a, b) }, icon("download"), "CSV"),
-        PREVIEW ? null : el("button", { type: "button", class: "btn small", onclick: copyLink }, icon("link"), "Link"),
-        el("button", { type: "button", class: "btn small", onclick: openCite }, "Cite and API"))));
+      viewTabs("View", views, draw, seriesView),
+      el("div", { class: "tools" },
+        toolButton("info", "About this result", () => openAbout(a)),
+        PREVIEW ? null : toolButton("download", "Download the yearly data (CSV)", () => downloadCsv(a, b)),
+        PREVIEW ? null : toolButton("link", "Copy a link to this view", copyLink),
+        toolButton("quote", "Cite this result and get its API query", openCite))),
+    body);
   draw(seriesView);
 }
 
 /* ---------- details: significance, context, every variable ---------- */
 
 function evidenceCard(r) {
+  const detail = r.significant ? r.detail : r.detail.replace(/^Not significant\. /, "");
   const v = r.variable, mk = r.tests.mann_kendall, tt = r.tests.t_test;
   const d = digits(r.trend.per_decade);
   const rows = [
@@ -364,6 +378,7 @@ function evidenceCard(r) {
       `A p-value below 0.05 is the usual line for “significant”. The two tests ${r.tests.agree ? "agree" : "disagree, so treat the verdict with care"}. `
       + (mk.variance_inflation > 1.05 ? `Years are not independent of each other here, so the uncertainty was widened ${mk.variance_inflation.toFixed(1)} times before testing. ` : "")
       + (r.more_years_needed ? `At this rate, about ${r.more_years_needed} more year${r.more_years_needed > 1 ? "s" : ""} of data would settle it.` : "") }),
+    el("p", { class: "note-text", text: detail }),
   ];
 }
 
@@ -417,30 +432,16 @@ async function renderScan(id) {
     return;
   }
   if (id !== requestId) return;
-  $("scan-gist").textContent = `${data.significant} of ${data.tested} trending`;
-  const table = sortableTable({
-    caption: `Every variable tested in ${regionName(state.region)}`,
-    rows: data.variables,
-    rowClass: (r) => (r.id === state.variable ? "current" : ""),
-    columns: [
-      { key: "label", label: "Variable", sort: (r) => r.label,
-        cell: (r) => el("button", { type: "button", class: "link", text: r.label,
-          onclick: () => { state.variable = r.id; frameNext = false; update(); $("panel").scrollTo({ top: 0, behavior: REDUCED_MOTION ? "auto" : "smooth" }); } }) },
-      { key: "record", label: "Record",
-        cell: (r) => record({ v: r, years: r.years, size: "row", anomaly: r.values.map((x) => (x == null ? null : x - r.normal)),
-          label: `${r.label}: one cell per year` }) },
-      { key: "change", label: "Per decade", numeric: true, sort: (r) => (r.significant ? 1 : 0) * 1e3 + (r.signal_to_noise || 0),
-        cell: (r) => [el("span", { class: `tag ${r.significant ? "is-yes" : "is-no"}`, title: r.significant ? "Significant" : "Not significant" },
-          el("i"), el("span", { class: "visually-hidden", text: r.significant ? "Significant: " : "Not significant: " })), " ",
-          el("span", { class: r.significant ? "earned" : "", style: `color:${claimColour(r, r.per_decade, r.significant)}`,
-            text: signedFix(r.per_decade, digits(r.per_decade)) }), " ", el("span", { class: "unit", text: r.unit })] },
-    ],
-  });
+  $("scan-gist").textContent = `${data.significant} of ${data.tested} changing`;
   box.replaceChildren(
-    el("p", { class: "note-text", text: "Testing many variables at once invites flukes, so these verdicts use a stricter test "
-      + "(false-discovery control) than a single investigation. A filled dot and colour mark the changes that pass it."
-      + (data.still_loading.length ? ` ${data.still_loading.length} more are still being fetched from NASA.` : "") }),
-    el("div", { class: "table-wrap" }, table));
+    forestPlot(data.variables, state.variable, (r) => {
+      state.variable = r.id; frameNext = false; update();
+      $("panel").scrollTo({ top: 0, behavior: REDUCED_MOTION ? "auto" : "smooth" });
+    }),
+    el("details", { class: "explain" }, el("summary", { text: "How to read this" }),
+      el("p", { text: "Each row is one variable. The dot is its change per decade, measured in units of its own normal "
+        + "year-to-year variability, so that rain and temperature share one axis; the line is the 95% range. A filled, "
+        + "coloured dot passes the significance test after correcting for testing many variables at once." })));
 }
 
 /* ---------- the globe: countries, selected regions, drawing a box ---------- */
@@ -792,8 +793,9 @@ async function update() {
   box.classList.remove("loading", "has-error");
   const trigger = $("pick-variable");
   trigger.querySelector(".record-glyph")?.remove();
-  trigger.insertBefore(recordOf(a, "glyph"), trigger.querySelector(".combo-value"));
+  trigger.insertBefore(recordOf(a), trigger.querySelector(".combo-value"));
   $("verdict").replaceChildren(...(b ? [verdictBlock(a, "a"), verdictBlock(b, "b"), comparisonLine(a, b)] : [verdictBlock(a)]));
+  $("stats").replaceChildren(...(b ? [] : [statsRow(a)]));
   pointNote(a);
   renderSeries(a, b);
   const yesNo = (r) => (r.significant ? `Yes, ${pEq(r.tests.mann_kendall.p)}` : `No, ${pEq(r.tests.mann_kendall.p)}`);
@@ -836,6 +838,7 @@ async function main() {
   });
 
   attachMap();
+  initLive(canary);
   getJSON("/api/countries").then((geo) => map.getSource("countries").setData(geo)).catch(() => {});
   canary.setTrend(state.variable, { keepSpin: true });
   await update();

@@ -110,17 +110,17 @@ export function record({ v, years, anomaly, size = "full", more = 0, trend = nul
 }
 
 /** Strength of evidence: −log10(p) on a bar, with the 5% line marked. */
-export function evidenceBar(v, p, significant, change) {
+export function evidenceBar(v, p, significant, change, compact = false) {
   const W = 240, max = 4, x = (val) => (Math.min(val, max) / max) * W;
   const e = -Math.log10(Math.max(p, 1e-6)), line = -Math.log10(0.05);
-  const root = svg("svg", { class: "meter", viewBox: `0 0 ${W} 24`, role: "img",
+  const root = svg("svg", { class: compact ? "meter compact" : "meter", viewBox: `0 0 ${W} ${compact ? 14 : 24}`, role: "img",
     "aria-label": `Evidence: p ${p < 0.001 ? "below 0.001" : `= ${p.toFixed(3)}`}; the significance line is p = 0.05` });
   root.append(svg("rect", { class: "meter-track", x: 0, y: 4, width: W, height: 6 }));
   const fill = svg("rect", { x: 0, y: 4, width: x(e).toFixed(1), height: 6 });
   fill.style.fill = significant ? claimColour(v, change, true) : "var(--faint)";
   root.append(fill);
   root.append(svg("line", { class: "meter-mark", x1: x(line), x2: x(line), y1: 0, y2: 14 }));
-  for (const [text, at, anchor] of [["chance", 0, "start"], ["5%", x(line), "middle"], ["very unlikely to be chance", W, "end"]]) {
+  for (const [text, at, anchor] of compact ? [] : [["chance", 0, "start"], ["5%", x(line), "middle"], ["very unlikely to be chance", W, "end"]]) {
     const t = svg("text", { class: "tick", x: at, y: 23, "text-anchor": anchor });
     t.textContent = text;
     root.append(t);
@@ -129,16 +129,18 @@ export function evidenceBar(v, p, significant, change) {
 }
 
 /** The 95% range of a rate on an axis with zero marked. */
-export function rangeBar(v, rate, range, significant) {
+export function rangeBar(v, rate, range, significant, compact = false) {
   const W = 240, [lo, hi] = range, span = Math.max(Math.abs(lo), Math.abs(hi), Math.abs(rate)) * 1.25 || 1;
   const x = (val) => W / 2 + (val / span) * (W / 2);
-  const root = svg("svg", { class: "meter", viewBox: `0 0 ${W} 24`, role: "img",
+  const root = svg("svg", { class: compact ? "meter compact" : "meter", viewBox: `0 0 ${W} ${compact ? 16 : 24}`, role: "img",
     "aria-label": `95% range of the rate: ${lo.toPrecision(2)} to ${hi.toPrecision(2)} per decade` });
   root.append(svg("line", { class: "meter-axis", x1: 0, x2: W, y1: 8, y2: 8 }));
   root.append(svg("line", { class: "meter-zero", x1: x(0), x2: x(0), y1: 2, y2: 14 }));
-  const zero = svg("text", { class: "tick", x: x(0), y: 23, "text-anchor": "middle" });
-  zero.textContent = "0";
-  root.append(zero);
+  if (!compact) {
+    const zero = svg("text", { class: "tick", x: x(0), y: 23, "text-anchor": "middle" });
+    zero.textContent = "0";
+    root.append(zero);
+  }
   const colour = significant ? claimColour(v, rate, true) : "var(--ink-3)";
   const bar = svg("line", { x1: x(lo), x2: x(hi), y1: 8, y2: 8, "stroke-width": 4, "stroke-linecap": "round" });
   bar.style.stroke = colour;

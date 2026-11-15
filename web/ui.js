@@ -2,7 +2,7 @@
    Each follows the matching WAI-ARIA Authoring Practices pattern and uses native elements
    where one exists. */
 
-import { el, svg } from "./util.js";
+import { el, statusIcon, svg } from "./util.js";
 
 let serial = 0;
 const uid = (prefix) => `${prefix}-${++serial}`;
@@ -21,6 +21,8 @@ export function icon(name) {
     download: "M8 2.5v7.5M4.5 7L8 10.5 11.5 7M3 13h10",
     globe: "M8 1.8a6.2 6.2 0 100 12.4A6.2 6.2 0 008 1.8zM1.8 8h12.4M8 1.8c2 2 2 10.4 0 12.4M8 1.8c-2 2-2 10.4 0 12.4",
     theme: "M8 1.8a6.2 6.2 0 100 12.4A6.2 6.2 0 008 1.8z",
+    info: "M8 1.8a6.2 6.2 0 100 12.4A6.2 6.2 0 008 1.8zM8 7.2v4M8 4.9v.1",
+    quote: "M3 9.5h3v3.5H3zM3 9.5C3 6.5 4 5 6 4.2M10 9.5h3v3.5h-3zM10 9.5c0-3 1-4.5 3-5.3",
   };
   const node = svg("svg", { viewBox: "0 0 16 16", class: `icon icon-${name}`, "aria-hidden": "true" });
   const filled = name === "sortUp" || name === "sortDown" || name === "play";
@@ -268,4 +270,11 @@ export async function copyText(text, what = "Copied", fallbackNode = null) {
     }
     toast("Copying was blocked: the text is selected, press Ctrl+C or ⌘C", { tone: "warn", ms: 4200 });
   }
+}
+
+/** The status shape (circle, triangle, diamond, square) in its status colour. */
+export function statusShape(level) {
+  const node = statusIcon(level);
+  node.classList.add("status-shape", `status-${level}`);
+  return node;
 }

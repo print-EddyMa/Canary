@@ -67,6 +67,8 @@
       </div>
     </div>
 
+    <div id="alert-banner" class="alert-banner" role="alert" hidden></div>
+
     <div class="statusbar">
       <span id="status-where">Move over the globe to read it</span>
       <span id="status-value"></span>
@@ -78,7 +80,7 @@
       <div class="panel-tabs" role="tablist" aria-label="What the panel shows">
         <button role="tab" id="pane-tab-trend" aria-controls="trend" aria-selected="true" type="button">Trend</button>
         <button role="tab" id="pane-tab-place" aria-controls="place" aria-selected="false" type="button">Place</button>
-        <button role="tab" id="pane-tab-today" aria-controls="welcome" aria-selected="false" type="button">Today</button>
+        <button role="tab" id="pane-tab-today" aria-controls="welcome" aria-selected="false" type="button"><span class="live-dot" aria-hidden="true"></span>Live<span id="live-badge" class="tab-badge" hidden></span></button>
       </div>
 
       <!-- Trend: one variable in one region -->
@@ -86,9 +88,10 @@
         <div class="results">
           <div id="verdict" class="verdict-wrap" aria-live="polite"><p class="loading-note">Reading NASA's records&hellip;</p></div>
           <p id="point-note" class="point-note" hidden></p>
-          <article id="card-series" class="figure"></article>
+          <article id="card-series" class="figure focus"></article>
+          <div id="stats"></div>
           <details id="card-numbers" class="fold">
-            <summary><span>Is it significant?</span><span id="numbers-gist" class="gist"></span></summary>
+            <summary><span>How sure are we?</span><span id="numbers-gist" class="gist"></span></summary>
             <div id="numbers-body" class="fold-body"></div>
           </details>
           <details id="card-why" class="fold">
@@ -100,9 +103,7 @@
             <div id="scan-body" class="fold-body flush"></div>
           </details>
         </div>
-        <p class="fine">Data: NASA POWER global annual grids (MERRA-2 reanalysis from 1981; CERES SYN1deg satellite record from 2001).
-          Trend: Theil-Sen slope. Significance: Mann-Kendall test corrected for memory in the data, with a least-squares
-          t-test as a second opinion.</p>
+        <p class="powered">Powered by NASA Earth science data</p>
       </section>
 
       <!-- Place: one point on the globe -->
@@ -133,14 +134,20 @@
         </div>
       </section>
 
-      <!-- Today: the planet's indicators and live events -->
+      <!-- Live: alerts as they are reported, and the planet's indicators -->
       <section id="welcome" class="welcome" role="tabpanel" aria-labelledby="pane-tab-today" hidden>
-        <div id="dashboard"><h1>Earth today</h1><p class="loading-note">Reading the planet's indicators and live events&hellip;</p></div>
-        <h2>Other views of the planet</h2>
-        <ul id="views" class="demos"></ul>
-        <p class="fine">Data: NASA GIBS imagery, NASA GEOS-FP weather analysis, NASA EONET events, USGS earthquakes,
-          NASA GISTEMP, NOAA climate indices and CO2, NSIDC sea ice, Terrain Tiles (NASA SRTM and others),
-          Natural Earth outlines and rivers. Built for the 2026 NASA Space Apps Challenge.</p>
+        <div class="live-head">
+          <h1>Live alerts</h1>
+          <span id="live-status" class="live-status" data-state="polling">Connecting…</span>
+        </div>
+        <div id="live-summary" class="live-summary"></div>
+        <div id="live-filters" class="chips-row" role="group" aria-label="Show"></div>
+        <ol id="live-feed" class="live-feed"></ol>
+        <p id="live-empty" class="note-text" hidden>Nothing to report under this filter.</p>
+        <details class="fold">
+          <summary><span>The planet today</span><span class="gist">indicators and brief</span></summary>
+          <div id="dashboard" class="fold-body"><p class="loading-note">Reading the planet's indicators&hellip;</p></div>
+        </details>
       </section>
     </aside>
 

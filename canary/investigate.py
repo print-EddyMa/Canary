@@ -262,7 +262,8 @@ def rank(info: dict, analyses: list[dict], waiting: list[str]) -> dict:
         "id": a["variable"]["id"], "label": a["variable"]["label"], "unit": a["variable"]["unit"],
         "theme": a["variable"]["theme"], "family": a["variable"]["family"], "up": a["variable"]["up"],
         "years": a["years"], "values": a["values"], "normal": a["normal"], "direction": a["trend"]["direction"],
-        "per_decade": a["trend"]["per_decade"], "signal_to_noise": a["trend"]["signal_to_noise"],
+        "per_decade": a["trend"]["per_decade"], "range": a["trend"]["range_per_decade"],
+        "signal_to_noise": a["trend"]["signal_to_noise"],
         "p": a["tests"]["mann_kendall"]["p"], "period": a["period"],
     } for a in analyses]
     adjusted = trend.fdr_adjust([r["p"] for r in rows]) if rows else []

@@ -24,6 +24,7 @@
       case "/api/wind": return file("data/wind.json");
       case "/api/layers": return []; // NASA imagery cannot load inside the snapshot
       case "/api/weather": return file("data/weather.json");
+      case "/api/alerts": return file("data/alerts.json");
       case "/api/satellite": throw new Error("The satellite loop needs the running app.");
       case "/api/search": throw new Error("Search needs the running app.");
       case "/api/suggest":
