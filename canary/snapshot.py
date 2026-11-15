@@ -26,7 +26,7 @@ from . import catalogue, cube, investigate, regions
 WEB = Path(__file__).resolve().parent.parent / "web"
 MAPLIBRE = "https://unpkg.com/maplibre-gl@5.6.0/dist"
 SCRIPTS = ("start.js", "app.js", "charts.js", "util.js", "ui.js", "record.js", "dossier.js", "dashboard.js",
-           "wind.js", "preview.js")
+           "wind.js", "fields.js", "command.js", "preview.js")
 # The example places offered in the Place pane (web/app.js DEMOS).
 PLACES = [(78.2, 15.6, "Svalbard, Arctic Norway"), (0.0, -150.0, "Equatorial Pacific"),
           (39.74, -104.99, "Denver, Colorado"), (-1.28, 36.82, "Nairobi, Kenya")]
@@ -62,6 +62,13 @@ def write_data(out: Path) -> None:
             }
             print(f"  place: {name}", flush=True)
         _dump(out / "data/places.json", places)
+        # The last 24 hours of weather, as served when the snapshot was made.
+        meta = get("/api/weather")
+        if meta.get("status") == "ready":
+            _dump(out / "data/weather.json", meta)
+            for name in meta["fields"]:
+                (out / "data/weather").mkdir(parents=True, exist_ok=True)
+                (out / f"data/weather/{name}.bin").write_bytes(client.get(f"/api/weather/{name}").raise_for_status().content)
     _dump(out / "data/snapshot.json", {"date": dt.date.today().strftime("%-d %B %Y"), "regions": len(ids)})
 
     per_region: dict[str, list[dict]] = {r: [] for r in ids}

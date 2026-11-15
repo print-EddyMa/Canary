@@ -971,6 +971,8 @@ function stopLoop() {
 }
 
 const modeButtons = [...document.querySelectorAll("[data-mode]")];
+// The snapshot cannot reach NASA's imagery servers, so it has no satellite loop.
+if (PREVIEW) modeButtons.find((b) => b.dataset.mode === "satellite").hidden = true;
 modeButtons.forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
 
 /** Switch what the globe shows. */

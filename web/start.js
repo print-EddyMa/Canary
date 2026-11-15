@@ -5,7 +5,8 @@
 import "./app.js"; // the globe, its layers, the Place and Today panes
 import { compareChart, lineChart } from "./charts.js";
 import { claimColour, meters, record } from "./record.js";
-import { combobox, icon, initTheme, sortableTable, viewTabs } from "./ui.js";
+import { addGroup, bindKeys, open as openPalette } from "./command.js";
+import { combobox, copyText, icon, initTheme, sortableTable, toast, viewTabs } from "./ui.js";
 import { coordText, el, fixed, getJSON, sig, thousands } from "./util.js";
 
 const canary = window.canary;
@@ -275,16 +276,44 @@ function downloadCsv(a, b) {
   URL.revokeObjectURL(link.href);
 }
 
-function copyLinkButton() {
-  const button = el("button", { type: "button", class: "btn small" }, icon("link"), "Copy link");
-  button.addEventListener("click", async () => {
-    let done = true;
-    try { await navigator.clipboard.writeText(location.href); } catch { done = false; }
-    button.lastChild.textContent = done ? "Link copied" : "Copy the address bar instead";
-    setTimeout(() => { button.lastChild.textContent = "Copy link"; }, 2200);
-  });
-  return button;
+/** The JSON query behind the current result, for anyone who wants to reproduce it. */
+function apiQuery(region = state.region) {
+  return `${location.origin}/api/investigate?variable=${state.variable}&region=${encodeURIComponent(region)}&start=${state.start}&end=${state.end}`;
 }
+
+function citation(r) {
+  const today = new Date().toISOString().slice(0, 10);
+  const v = r.variable;
+  return {
+    result: `Canary (${new Date().getFullYear()}). ${v.label} in ${nm(r)}, ${r.period[0]}–${r.period[1]}: `
+      + `${signedFix(r.trend.per_decade, digits(r.trend.per_decade))} ${v.unit} per decade (95% range `
+      + `${signedFix(r.trend.range_per_decade[0], digits(r.trend.per_decade))} to ${signedFix(r.trend.range_per_decade[1], digits(r.trend.per_decade))}), `
+      + `Theil-Sen slope; Mann-Kendall test corrected for autocorrelation, ${pEq(r.tests.mann_kendall.p)}. `
+      + `Area-weighted yearly means of NASA POWER ${v.source.replace("NASA POWER ", "")}, parameter ${v.parameter}. Retrieved ${today}${PREVIEW ? "" : ` from ${location.href}`}.`,
+    data: "These data were obtained from the NASA Langley Research Center (LaRC) POWER Project, funded through the "
+      + "NASA Earth Science/Applied Science Program. The MERRA-2 reanalysis is produced by NASA's Global Modeling and "
+      + "Assimilation Office (GMAO); CERES SYN1deg by NASA Langley.",
+  };
+}
+
+function openCite() {
+  const r = results.a;
+  if (!r) return;
+  const c = citation(r);
+  const block = (title, text, action) => {
+    const pre = el("pre", { class: "cite-text", text });
+    return [el("h3", { text: title }), pre,
+      el("button", { type: "button", class: "btn small", onclick: () => copyText(text, `${title} copied`, pre) }, icon("link"), action)];
+  };
+  openDialog("Cite and reproduce", [
+    ...block("Citation", c.result, "Copy citation"),
+    ...block("Data acknowledgement", c.data, "Copy acknowledgement"),
+    ...(PREVIEW ? [] : block("API query", `curl '${apiQuery()}'`, "Copy API query")),
+    el("p", { class: "steps-note", text: "The API returns every number on this page as JSON: the yearly series, the trend and its range, both tests and the explanation." }),
+  ]);
+}
+
+function copyLink() { copyText(location.href, "Link to this view copied"); }
 
 function renderSeries(a, b) {
   const v = a.variable;
@@ -306,9 +335,10 @@ function renderSeries(a, b) {
       el("p", {}, el("strong", { text: `${v.label}. ` }), `${v.definition} `,
         `Source: ${v.source}, parameter ${v.parameter}`
         + (b ? "." : `; area-weighted average of ${thousands(a.region.cells)} grid cells.`)),
-      PREVIEW ? null : el("div", { class: "actions" },
-        el("button", { type: "button", class: "btn small", onclick: () => downloadCsv(a, b) }, icon("download"), "Download CSV"),
-        copyLinkButton())));
+      el("div", { class: "actions" },
+        PREVIEW ? null : el("button", { type: "button", class: "btn small", onclick: () => downloadCsv(a, b) }, icon("download"), "CSV"),
+        PREVIEW ? null : el("button", { type: "button", class: "btn small", onclick: copyLink }, icon("link"), "Link"),
+        el("button", { type: "button", class: "btn small", onclick: openCite }, "Cite and API"))));
   draw(seriesView);
 }
 
@@ -677,6 +707,47 @@ function endTour() {
   document.querySelectorAll(".tour-focus").forEach((n) => n.classList.remove("tour-focus"));
 }
 
+/* ---------- command palette and shortcuts ---------- */
+
+function openShortcuts() {
+  const rows = [["⌘ K or Ctrl K", "Search everything"], ["/", "Search everything"], ["1  2  3", "Trends, weather, satellite"],
+    ["Space", "Play or pause the timeline"], ["←  →", "Step the timeline by one image or hour"], ["?", "This list"], ["Esc", "Close a dialog or stop drawing"]];
+  openDialog("Keyboard shortcuts", [el("table", { class: "data shortcuts" },
+    el("tbody", {}, ...rows.map(([k, what]) => el("tr", {}, el("td", {}, ...k.split("  ").map((x) => el("kbd", { text: x }))), el("td", { text: what })))))]);
+}
+
+function registerCommands() {
+  const view = (mode) => () => canary.setMode(mode);
+  addGroup({ name: "Actions", limit: 6, idle: 7, items: () => [
+    { icon: "◐", label: "Show weather, last 24 hours", detail: "Clouds, rain, temperature and wind from NASA GEOS-FP", keys: ["2"], keywords: "weather clouds rain wind now", run: view("weather") },
+    ...(PREVIEW ? [] : [{ icon: "◉", label: "Show the satellite loop", detail: "GOES and Himawari, last 3 hours", keys: ["3"], keywords: "satellite imagery goes himawari clouds live", run: view("satellite") }]),
+    { icon: "↗", label: "Show trends", detail: "The chosen variable's trend map", keys: ["1"], keywords: "trend map", run: view("trends") },
+    { icon: "⇄", label: "Compare with another region…", keywords: "compare versus vs", run: () => boxes.compare.open() },
+    { icon: "❝", label: "Cite this result and get its API query", keywords: "cite citation reference api reproduce json curl", run: openCite },
+    ...(PREVIEW ? [] : [
+      { icon: "⇩", label: "Download the yearly data as CSV", keywords: "download export csv data", run: () => results.a && downloadCsv(results.a, results.b) },
+      { icon: "⧉", label: "Copy a link to this view", keywords: "share link url permalink", run: copyLink },
+      { icon: "◑", label: "Switch between light and dark", keywords: "theme dark light mode", run: () => $("theme-toggle").click() },
+    ]),
+    { icon: "⌖", label: "Find a place…", detail: "Its vital signs, where its rain goes, the weather now", keywords: "place city point search", run: () => { canary.showPane("place"); $("search-input").focus(); } },
+    { icon: "☰", label: "Earth today", detail: "Planet indicators and the biggest events now", keywords: "today dashboard events indicators", run: () => canary.showPane("today") },
+    { icon: "?", label: "Open the guide", keywords: "help guide how", run: openGuide },
+    { icon: "⌨", label: "Keyboard shortcuts", keys: ["?"], keywords: "keys shortcuts", run: openShortcuts },
+    ...DEMOS.map((d) => ({ icon: "▶", label: `Walkthrough: ${d.title}`, detail: d.blurb, keywords: "demo example walkthrough tour", run: () => playDemo(d) })),
+  ] });
+  addGroup({ name: "Variables", limit: 6, idle: 0, items: () => cat.variables.map((v) => ({
+    icon: "≋", label: v.label, detail: v.definition, meta: v.unit, keywords: `${v.theme} ${v.parameter}`,
+    run: () => { state.variable = v.id; frameNext = false; canary.showPane("trend"); update(); } })) });
+  addGroup({ name: "Regions", limit: 6, idle: 0, items: () => [
+    { id: "world", name: "The whole world", kind: "World" },
+    ...cat.regions.presets.map((r) => ({ ...r, kind: "Region" })),
+    ...cat.regions.continents.map((r) => ({ ...r, kind: "Continent" })),
+    ...cat.regions.countries.map((r) => ({ ...r, kind: "Country" })),
+  ].map((r) => ({ icon: "▢", label: r.name, detail: r.about, meta: r.kind, keywords: r.id,
+    run: () => { clicked = null; canary.showPane("trend"); setRegion("region", r.id); } })) });
+  addGroup({ name: "Places", limit: 5, items: () => [] });
+}
+
 /* ---------- update ---------- */
 
 function pointNote(a) {
@@ -753,6 +824,16 @@ async function main() {
   $("picker").addEventListener("click", (e) => { if (e.target === $("picker")) $("picker").close(); });
   window.addEventListener("canary-pane", (e) => { if (e.detail === "trend") writeHash(); });
   document.addEventListener("keydown", (e) => { if (e.key === "Escape" && drawing) stopDrawing(); });
+
+  registerCommands();
+  bindKeys();
+  $("open-search").addEventListener("click", () => openPalette());
+  document.addEventListener("keydown", (e) => {
+    if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
+    const modes = { 1: "trends", 2: "weather", 3: "satellite" };
+    if (modes[e.key]) canary.setMode(modes[e.key]);
+    else if (e.key === "?") openShortcuts();
+  });
 
   attachMap();
   getJSON("/api/countries").then((geo) => map.getSource("countries").setData(geo)).catch(() => {});

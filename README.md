@@ -56,6 +56,36 @@ other places and NASA's satellite imagery need the running app.
 
 ## What you can do
 
+### The globe: trends, weather, satellite
+
+A switch at the top of the globe chooses what it shows:
+
+| Mode | What you see | Source |
+|---|---|---|
+| Trends | The chosen variable's change per decade in every grid cell, 1981–2025, faint where it could be chance | Canary analysis of NASA POWER |
+| Weather | The last 24 hours, hour by hour: clouds lit by their own relief and greyed on the night side, rain and snow, 2 m temperature (blue below freezing, red above), and wind particles | NASA GEOS-FP hourly analysis |
+| Satellite | The last three hours of geostationary imagery, a frame every 20 minutes: GeoColor over the Americas and the Pacific, infrared over Asia and Australia | NOAA GOES-East and GOES-West, JMA Himawari, via NASA GIBS |
+
+Maps are not pictures: each is a grid of values drawn by a WebGL2 shader (`web/fields.js`) that
+reprojects it, interpolates between grid points and between hours, and colours it with the
+variable's colour family, so it stays smooth at every zoom. The status bar along the bottom
+reads the value under the cursor (for example "+0.42 °C per decade · significant", or
+"18.0 °C · cloud 100% · dry · wind 9 m/s from S"). A timeline plays, pauses and scrubs the weather
+and the satellite loop; Space plays and pauses, the arrow keys step.
+
+### Search everything
+
+`⌘K` or `Ctrl K` (or `/`) opens a command palette over every variable, region and country, any
+place on Earth (geocoded), the three views, and actions: compare, cite, copy a link, download
+the data, switch theme, play a walkthrough. `1`, `2` and `3` switch the view; `?` lists the
+shortcuts.
+
+### Cite and reproduce
+
+Every result has a **Cite and API** button: a citation with the rate, its range and the test,
+the NASA POWER data acknowledgement, and the exact API query (`/api/investigate?...`) that
+returns every number on the page as JSON.
+
 ### One workspace
 
 The question sits in the header: a variable, a region, an optional second region to compare,
@@ -193,6 +223,7 @@ canary/
   sources/indices.py    NOAA climate-mode indices
   sources/gibs.py       curated NASA GIBS layer catalogue
   sources/geos.py       live wind, temperature and pressure from NASA GEOS-FP
+  sources/weather.py    the last 24 hours of GEOS-FP clouds, rain, temperature and wind
   sources/events.py     NASA EONET events and USGS earthquakes
   stats/trend.py        anomalies, Mann-Kendall, Theil-Sen, least squares, FDR
   stats/ews.py          critical-slowing-down indicators and surrogates
@@ -220,10 +251,12 @@ web/
   dossier.js            vital signs, land and water, right now
   charts.js             SVG line charts with crosshair and tooltip
   record.js             the record strip, evidence bar and range bar
+  fields.js             WebGL2 renderer for the trend maps and the weather
+  command.js            the command palette
   ui.js                 searchable select, sortable table, view tabs, theme switch
   wind.js               wind particle animation
   preview.js            answers API calls from files in a snapshot build
-  maps/                 precomputed trend and alarm maps
+  maps/                 precomputed trend grids (.bin) and the alarm map
 tests/
 design/                 the Strata colour system: specimen page, its data and ramp generator
 reports/                research survey of data, tools and methods

@@ -238,3 +238,34 @@ export function initTheme(button) {
   systemDark.addEventListener("change", label);
   label();
 }
+
+/* ---------- toasts ---------- */
+
+let toastBox = null;
+/** A short confirmation that something happened ("Link copied"). */
+export function toast(text, { tone = "info", ms = 2600 } = {}) {
+  if (!toastBox) {
+    toastBox = el("div", { class: "toasts", role: "status", "aria-live": "polite" });
+    document.body.append(toastBox);
+  }
+  const item = el("div", { class: `toast toast-${tone}` }, el("i", { "aria-hidden": "true" }), el("span", { text }));
+  toastBox.append(item);
+  requestAnimationFrame(() => item.classList.add("in"));
+  setTimeout(() => { item.classList.remove("in"); setTimeout(() => item.remove(), 250); }, ms);
+}
+
+/** Copy text, then confirm with a toast; fall back to selecting it where the clipboard is refused. */
+export async function copyText(text, what = "Copied", fallbackNode = null) {
+  try {
+    await navigator.clipboard.writeText(text);
+    toast(what);
+  } catch {
+    if (fallbackNode) {
+      const range = document.createRange();
+      range.selectNodeContents(fallbackNode);
+      getSelection().removeAllRanges();
+      getSelection().addRange(range);
+    }
+    toast("Copying was blocked: the text is selected, press Ctrl+C or ⌘C", { tone: "warn", ms: 4200 });
+  }
+}
