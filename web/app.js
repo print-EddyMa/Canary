@@ -3,6 +3,7 @@
 import { caseView, renderDashboard } from "./dashboard.js";
 import { conditionCard, nowTab, silence, terrainTab, vitalsTab } from "./dossier.js";
 import { coordText, el, fixed, getJSON, kmBetween, sig, thousands } from "./util.js";
+import { TrendField, WeatherField } from "./fields.js";
 import { WindLayer } from "./wind.js";
 
 const HOME = { center: [15, 20], zoom: 1.7, pitch: 0, bearing: 0 };
@@ -48,7 +49,11 @@ const state = {
   tab: "vitals",
   pane: "trend", // which side-panel tab is showing: trend | place | today
   trendId: "temperature", // the variable chosen in the header; its trend map is the default overlay
+  mode: "trends", // what the globe shows: trends | weather | satellite
+  weather: { temp: false, precip: true, cloud: true },
 };
+// Data layers sit under the outlines, routes and events.
+const UNDER = ["drainage", "borders", "country-hit", "storm-tracks"];
 
 let catalogue = []; // NASA GIBS layers
 let maps = null; // global trend maps index
@@ -178,7 +183,13 @@ function applyOverlay() {
   if (map.getLayer("overlay")) map.removeLayer("overlay");
   if (map.getSource("overlay")) map.removeSource("overlay");
   const o = state.overlay;
-  if (o) {
+  if (o && o.type === "trend" && trendField) {
+    const layer = maps.layers.find((l) => l.id === o.id);
+    trendField.show(layer, state.opacity).catch((error) => console.warn(error.message));
+  } else if (trendField) {
+    trendField.hide();
+  }
+  if (o && o.type !== "trend") {
     if (o.type === "gibs") {
       const layer = layerInfo(o.key);
       map.addSource("overlay", {
@@ -186,17 +197,16 @@ function applyOverlay() {
         attribution: `${layer.label}: NASA GIBS (${layer.sensor})`,
       });
     } else {
-      const image = o.type === "alarm" ? maps.alarm.image : maps.layers.find((l) => l.id === o.id).image;
-      map.addSource("overlay", { type: "image", url: image, coordinates: WORLD });
+      map.addSource("overlay", { type: "image", url: maps.alarm.image, coordinates: WORLD });
     }
     map.addLayer({
       id: "overlay", type: "raster", source: "overlay",
       paint: {
         "raster-opacity": state.opacity,
         "raster-fade-duration": 0,
-        "raster-resampling": o.type === "gibs" ? "linear" : "nearest",
+        "raster-resampling": "linear",
       },
-    }, ["drainage", "borders", "country-hit", "storm-tracks"].find((id) => map.getLayer(id)));
+    }, UNDER.find((id) => map.getLayer(id)));
   }
   applyBase();
   renderLegend();
@@ -296,6 +306,7 @@ function renderLegend() {
     slider.addEventListener("input", () => {
       state.opacity = Number(slider.value);
       if (map.getLayer("overlay")) map.setPaintProperty("overlay", "raster-opacity", state.opacity);
+      if (trendField && state.overlay && state.overlay.type === "trend") trendField.setOpacity(state.opacity);
     });
     parts.push(el("label", { class: "opacity" }, "Opacity", slider));
   }
@@ -309,6 +320,24 @@ function renderLegend() {
         el("div", { class: "steps wrap" }, ...kinds.map(([, label, colour]) =>
           el("span", {}, el("i", { class: "round", style: `background:${colour}` }), label)))));
     }
+  }
+  if (state.mode === "weather" && weatherField && weatherField.meta) {
+    const w = state.weather;
+    const blocks = [];
+    if (w.temp) blocks.push(el("div", {}, el("div", { class: "ramp", style: `background:${gradient(thermalStops())}` }),
+      el("div", { class: "ramp-labels" }, el("span", { text: "−40 °C" }), el("span", { text: "0" }), el("span", { text: "+40 °C" }))));
+    if (w.precip) blocks.push(el("div", { class: "steps wrap" }, ...[["0.1", RAIN[0]], ["1", RAIN[1]], ["5", RAIN[2]], ["20 mm/h", RAIN[3]]]
+      .map(([label, colour]) => el("span", {}, el("i", { style: `background:${colour}` }), label))));
+    if (w.cloud) blocks.push(el("p", { text: "White: cloud, from thin to overcast. Grey where it is night." }));
+    parts.push(el("div", { class: "legend-block" },
+      el("h3", { text: "Weather, last 24 hours" }), ...blocks,
+      el("p", { class: "fine", text: `${weatherField.meta.source}. Each hour is an average; the animation blends between hours.` })));
+  }
+  if (state.mode === "satellite" && loop.sats.length) {
+    parts.push(el("div", { class: "legend-block" },
+      el("h3", { text: "Satellite loop, last 3 hours" }),
+      el("p", { text: loop.sats.map((s) => s.label).join(", ") + ". A new image every 10 minutes." }),
+      el("p", { class: "fine", text: "NOAA GOES and JMA Himawari, served by NASA GIBS. Europe and Africa are not covered." })));
   }
   if (state.wind && wind.grid) {
     parts.push(el("div", { class: "legend-block" },
@@ -351,6 +380,7 @@ function setOverlay(overlay, { keepSpin = false } = {}) {
 /** Show the trend map of the variable chosen in the header. */
 function setTrend(id, options) {
   state.trendId = id;
+  if (state.mode !== "trends") { setMode("trends", { keepSpin: options && options.keepSpin }); return; }
   if (maps && maps.layers.some((l) => l.id === id)) setOverlay({ type: "trend", id }, options);
   else renderDock();
 }
@@ -375,6 +405,14 @@ function renderDock() {
         "The trend map of the variable chosen at the top") : null,
       pick({ type: "alarm" }, "Alarm map", "How many vital signs have left their normal range"),
       pick(null, "None", "Show the globe without a data overlay")));
+  }
+  if (weatherField) {
+    const w = state.weather;
+    const toggle = (key, label, title) => check(w[key], label, title, (v) => { w[key] = v; if (state.mode === "weather") drawWeather(); renderLegend(); });
+    sections.push(section("weather", "Weather, last 24 hours", state.mode === "weather",
+      toggle("cloud", "Clouds", "Total cloud cover, NASA GEOS-FP"),
+      toggle("precip", "Rain and snow", "Precipitation rate, NASA GEOS-FP"),
+      toggle("temp", "Air temperature", "Temperature 2 m above the ground, NASA GEOS-FP")));
   }
   sections.push(section("live", "Happening now", true,
     check(state.wind, "Wind (live, animated)", "Wind from NASA's GEOS weather analysis", (v) => { state.wind = v; applyToggles(); }),
@@ -671,11 +709,35 @@ map.on("click", (e) => {
 map.on("mouseenter", "events", () => { map.getCanvas().style.cursor = "pointer"; });
 map.on("mouseleave", "events", () => { map.getCanvas().style.cursor = ""; });
 
-const hud = document.getElementById("hud");
+/* ---------- status bar: where the cursor is and what is there ---------- */
+
+const statusWhere = document.getElementById("status-where");
+const statusValue = document.getElementById("status-value");
+const statusTime = document.getElementById("status-time");
+const compassName = (deg) => ["N", "NE", "E", "SE", "S", "SW", "W", "NW"][Math.round(deg / 45) % 8];
+
+function readout(lat, lon) {
+  if (state.mode === "weather" && weatherField && weatherField.meta) {
+    const w = weatherField.probe(lat, lon);
+    return [`${w.temp.toFixed(1)} °C`, `cloud ${Math.round(w.cloud)}%`,
+      w.precip >= 0.05 ? `${w.precip.toFixed(1)} mm/h` : "dry", `wind ${w.wind.toFixed(0)} m/s from ${compassName(w.windFrom)}`].join("  ·  ");
+  }
+  if (state.overlay && state.overlay.type === "trend" && trendField) {
+    const t = trendField.probe(lat, lon);
+    const l = trendField.layer;
+    if (!t || !l) return "";
+    if (t.value == null) return `${l.label}: no data here`;
+    const d = Math.max(0, Math.min(3, 1 - Math.floor(Math.log10(Math.abs(t.value) || 1))));
+    return `${l.label}: ${t.value > 0 ? "+" : t.value < 0 ? "−" : ""}${Math.abs(t.value).toFixed(d)} ${l.unit} per decade  ·  ${t.significant ? "significant" : "could be chance"}`;
+  }
+  return "";
+}
+
 map.on("mousemove", (e) => {
-  hud.textContent = `${coordText(e.lngLat.lat, e.lngLat.lng)}  ·  zoom ${map.getZoom().toFixed(1)}`;
+  statusWhere.textContent = `${coordText(e.lngLat.lat, e.lngLat.lng)}  ·  z ${map.getZoom().toFixed(1)}`;
+  statusValue.textContent = readout(e.lngLat.lat, e.lngLat.lng);
 });
-map.on("mouseout", () => { hud.textContent = ""; });
+map.on("mouseout", () => { statusValue.textContent = ""; });
 
 // A slow turn of the globe until the visitor takes over.
 for (const type of ["mousedown", "touchstart", "wheel", "keydown"]) {
@@ -689,6 +751,255 @@ function spin() {
   map.jumpTo({ center: [c.lng + 0.04, c.lat] });
   requestAnimationFrame(spin);
 }
+
+/* ---------- modes: trends, weather, satellite ---------- */
+
+let trendField = null;
+let weatherField = null;
+// Rain from light to heavy: the water family's wet side, brightening to white.
+const RAIN = ["#0a8481", "#07aeaa", "#2dd8d3", "#d4fbf8"];
+const thermalStops = () => {
+  const t = maps && maps.layers.find((l) => l.id === "temperature");
+  return t ? t.stops : ["#89c3fe", "#399cf6", "#2e76ba", "#225382", "#2e3133", "#7c3a31", "#b15246", "#ea6a5b", "#ffa193"];
+};
+
+const timeline = {
+  box: document.getElementById("timeline"),
+  play: document.getElementById("timeline-play"),
+  range: document.getElementById("timeline-range"),
+  label: document.getElementById("timeline-label"),
+  note: document.getElementById("timeline-note"),
+  frames: 0,
+  time: 0,
+  playing: false,
+  last: 0,
+  speed: 1, // frames per second
+  onTime: null,
+};
+
+function setTimeline({ frames, time, speed, label, note, onTime }) {
+  Object.assign(timeline, { frames, time, speed, onTime });
+  timeline.labelFor = label;
+  timeline.range.max = String(frames - 1);
+  timeline.range.step = "0.01";
+  timeline.range.value = String(time);
+  timeline.note.textContent = note;
+  timeline.box.hidden = false;
+  showTime(time);
+}
+
+function showTime(time) {
+  timeline.time = time;
+  timeline.range.value = String(time);
+  if (timeline.onTime) timeline.onTime(time);
+  timeline.label.textContent = timeline.labelFor(time);
+}
+
+function setPlaying(on) {
+  timeline.playing = on;
+  timeline.play.setAttribute("aria-label", on ? "Pause" : "Play");
+  timeline.play.dataset.state = on ? "playing" : "paused";
+  if (weatherField) weatherField.setPlaying(on && state.mode === "weather");
+  if (on) { timeline.last = performance.now(); requestAnimationFrame(tick); }
+}
+
+function tick(now) {
+  if (!timeline.playing) return;
+  const dt = Math.min(0.1, (now - timeline.last) / 1000);
+  timeline.last = now;
+  let t = timeline.time + dt * timeline.speed;
+  if (t > timeline.frames - 1) t = 0; // loop
+  showTime(t);
+  requestAnimationFrame(tick);
+}
+
+timeline.play.addEventListener("click", () => setPlaying(!timeline.playing));
+timeline.range.addEventListener("input", () => { setPlaying(false); showTime(Number(timeline.range.value)); });
+document.addEventListener("keydown", (e) => {
+  if (timeline.box.hidden || e.target.closest("input, textarea, select, [contenteditable], dialog")) return;
+  if (e.key === " ") { e.preventDefault(); setPlaying(!timeline.playing); }
+  if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
+    e.preventDefault();
+    setPlaying(false);
+    showTime(Math.max(0, Math.min(timeline.frames - 1, Math.round(timeline.time) + (e.key === "ArrowRight" ? 1 : -1))));
+  }
+});
+
+const fmtUTC = (d) => `${d.toISOString().slice(0, 10)} ${d.toISOString().slice(11, 16)} UTC`;
+const ago = (d) => {
+  const h = (Date.now() - d) / 3.6e6;
+  return h < 1 ? `${Math.round(h * 60)} min ago` : `${Math.round(h)} h ago`;
+};
+
+let windFrame = -1;
+function drawWeather(time = timeline.time) {
+  if (!weatherField || !weatherField.meta) return;
+  weatherField.show = { ...state.weather };
+  weatherField.draw(time);
+  const f = Math.round(time);
+  if (f !== windFrame) {
+    windFrame = f;
+    wind.grid = weatherField.windGrid(f);
+  }
+  statusTime.textContent = `NASA GEOS-FP · ${fmtUTC(weatherField.dateAt(time))}`;
+}
+
+async function startWeather() {
+  timeline.box.hidden = false;
+  timeline.label.textContent = "Loading the last 24 hours from NASA GEOS-FP…";
+  timeline.note.textContent = "";
+  timeline.range.disabled = timeline.play.disabled = true;
+  let meta;
+  try {
+    meta = await weatherField.load(getJSON);
+  } catch (error) {
+    timeline.label.textContent = `Weather did not load: ${error.message}`;
+    return;
+  }
+  if (state.mode !== "weather") return;
+  if (meta.status !== "ready") {
+    timeline.label.textContent = meta.status === "failed"
+      ? `NASA GEOS-FP did not answer (${meta.error || "unknown error"}). Trying again shortly.`
+      : "Fetching the last 24 hours from NASA GEOS-FP. This takes a minute or two the first time…";
+    setTimeout(() => { if (state.mode === "weather") startWeather(); }, 8000);
+    return;
+  }
+  timeline.range.disabled = timeline.play.disabled = false;
+  state.wind = true;
+  windFrame = -1;
+  setTimeline({
+    frames: meta.frames, time: meta.frames - 1, speed: 2.5,
+    label: (t) => { const d = weatherField.dateAt(t); return `${fmtUTC(d)} · ${ago(d)}`; },
+    note: `Hourly analysis, ${meta.frames - 1} hours`,
+    onTime: (t) => drawWeather(t),
+  });
+  applyToggles();
+  renderLegend();
+  if (!REDUCED_MOTION) setPlaying(true);
+}
+
+/* The satellite loop: one raster layer per satellite and image time; the timeline shows one.
+   Images load newest first, one time step at a time, so the loop is usable while it fills. */
+const loop = { sats: [], frames: 0, shown: -1, loaded: new Set(), run: 0 };
+const LOOP_FRAMES = 9; // every 20 minutes over about 3 hours
+const HIDDEN = 0.003;
+const loopId = (s, k) => `sat-${s.key}-${k}`;
+
+async function startLoop() {
+  timeline.box.hidden = false;
+  timeline.label.textContent = "Finding the latest satellite images…";
+  timeline.range.disabled = timeline.play.disabled = true;
+  let sats;
+  try {
+    sats = await getJSON("/api/satellite");
+  } catch (error) {
+    timeline.label.textContent = `Satellite images are unavailable: ${error.message}`;
+    return;
+  }
+  if (state.mode !== "satellite") return;
+  stopLoop();
+  const run = ++loop.run;
+  loop.sats = sats.map((s) => ({ ...s, times: s.times.filter((_, i, all) => (all.length - 1 - i) % 2 === 0).slice(-LOOP_FRAMES) }));
+  loop.frames = Math.min(...loop.sats.map((s) => s.times.length));
+  for (const s of loop.sats) {
+    s.times = s.times.slice(-loop.frames);
+    for (let k = 0; k < loop.frames; k++) {
+      map.addSource(loopId(s, k), { type: "raster", tileSize: 256, maxzoom: s.maxzoom,
+        attribution: "Imagery: NOAA GOES, JMA Himawari via NASA GIBS", tiles: [s.tiles.replace("{time}", s.times[k])] });
+      map.addLayer({ id: loopId(s, k), type: "raster", source: loopId(s, k),
+        layout: { visibility: "none" },
+        // Hidden frames keep a sliver of opacity: a fully transparent layer lets MapLibre drop its tiles.
+        // Himawari's infrared comes with a rainbow enhancement; shown in grey, cold cloud tops are white.
+        paint: { "raster-opacity": HIDDEN, "raster-opacity-transition": { duration: 0 }, "raster-fade-duration": 0,
+          "raster-saturation": s.key === "himawari" ? -1 : 0 } },
+      UNDER.find((l) => map.getLayer(l)));
+    }
+  }
+  timeline.range.disabled = timeline.play.disabled = false;
+  setTimeline({
+    frames: loop.frames, time: loop.frames - 1, speed: 2,
+    label: (t) => { const d = new Date(loop.sats[0].times[loop.shown >= 0 ? loop.shown : Math.round(t)]); return `${fmtUTC(d)} · ${ago(d)}`; },
+    note: "Loading images…",
+    onTime: (t) => showLoopFrame(Math.round(t)),
+  });
+  renderLegend();
+  // Load the newest image first, then the earlier ones in turn.
+  for (let k = loop.frames - 1; k >= 0; k--) {
+    if (run !== loop.run) return;
+    for (const s of loop.sats) map.setLayoutProperty(loopId(s, k), "visibility", "visible");
+    const started = performance.now();
+    while (run === loop.run && performance.now() - started < 20000
+      && !loop.sats.every((s) => map.isSourceLoaded(loopId(s, k)))) {
+      await new Promise((r) => setTimeout(r, 250));
+    }
+    if (run !== loop.run) return;
+    loop.loaded.add(k);
+    timeline.note.textContent = loop.loaded.size < loop.frames
+      ? `Loading images ${loop.loaded.size} of ${loop.frames}…` : `${loop.frames} images, 20 minutes apart`;
+    if (k === loop.frames - 1) showLoopFrame(k, true);
+    if (loop.loaded.size === 2 && !REDUCED_MOTION && !timeline.playing) setPlaying(true);
+  }
+}
+
+function showLoopFrame(k, force = false) {
+  // Show the nearest image whose tiles for this view have arrived; otherwise keep the one shown.
+  const ready = [...loop.loaded].filter((i) => loop.sats.every((s) => map.isSourceLoaded(loopId(s, i))));
+  if (!ready.length) return;
+  const pick = ready.reduce((a, b) => (Math.abs(b - k) < Math.abs(a - k) ? b : a));
+  if (pick === loop.shown && !force) return;
+  for (const s of loop.sats) {
+    for (const i of loop.loaded) {
+      if (map.getLayer(loopId(s, i))) map.setPaintProperty(loopId(s, i), "raster-opacity", i === pick ? 1 : HIDDEN);
+    }
+  }
+  loop.shown = pick;
+  statusTime.textContent = `GOES · Himawari · ${fmtUTC(new Date(loop.sats[0].times[pick]))}`;
+}
+
+function stopLoop() {
+  loop.run++;
+  loop.loaded = new Set();
+  for (const s of loop.sats) {
+    for (let k = 0; k < loop.frames; k++) {
+      const id = loopId(s, k);
+      if (map.getLayer(id)) map.removeLayer(id);
+      if (map.getSource(id)) map.removeSource(id);
+    }
+  }
+  loop.sats = [];
+  loop.shown = -1;
+}
+
+const modeButtons = [...document.querySelectorAll("[data-mode]")];
+modeButtons.forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
+
+/** Switch what the globe shows. */
+function setMode(mode, { keepSpin = false } = {}) {
+  if (mode === "weather" && !weatherField) mode = "trends";
+  const previous = state.mode;
+  state.mode = mode;
+  modeButtons.forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.mode === mode)));
+  setPlaying(false);
+  if (previous === "weather" && mode !== "weather") {
+    weatherField.hide();
+    state.wind = false;
+    if (lastWind) wind.grid = lastWind;
+  }
+  if (previous === "satellite" && mode !== "satellite") stopLoop();
+  timeline.box.hidden = mode === "trends";
+  statusTime.textContent = "";
+  if (mode === "trends") {
+    setOverlay(maps && maps.layers.some((l) => l.id === state.trendId) ? { type: "trend", id: state.trendId } : null, { keepSpin });
+  } else {
+    state.overlay = null;
+    applyOverlay();
+    if (mode === "weather") { lastWind = wind.grid; startWeather(); }
+    if (mode === "satellite") { spinning = false; startLoop(); }
+  }
+  applyToggles();
+  renderDock();
+}
+let lastWind = null;
 
 /* ---------- world dashboard ---------- */
 
@@ -797,6 +1108,12 @@ map.on("load", async () => {
     map.getSource("events").setData(eventsResult.value);
   }
   if (windResult.status === "fulfilled") wind.setGrid(windResult.value);
+  try {
+    trendField = new TrendField(map, UNDER);
+    weatherField = new WeatherField(map, UNDER, { thermal: thermalStops(), rain: RAIN });
+  } catch (error) {
+    console.warn(`Smooth map layers are off: ${error.message}`);
+  }
   renderDock();
   applyToggles();
   fillWelcome();
@@ -813,5 +1130,5 @@ map.on("load", async () => {
 });
 
 // For tests and the console.
-window.canary = { map, state, select, setOverlay, setTrend, setTab, showPane, wind, thousands, ready, onMapClick: null,
-  stopSpin: () => { spinning = false; } };
+window.canary = { map, state, select, setOverlay, setTrend, setTab, showPane, setMode, wind, thousands, ready, onMapClick: null,
+  stopSpin: () => { spinning = false; }, fields: () => ({ trendField, weatherField }) };

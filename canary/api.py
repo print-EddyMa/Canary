@@ -13,14 +13,14 @@ import anthropic
 import httpx
 from fastapi import FastAPI, HTTPException, Query
 from fastapi.middleware.gzip import GZipMiddleware
-from fastapi.responses import FileResponse
+from fastapi.responses import FileResponse, Response
 from fastapi.staticfiles import StaticFiles
 
 import json
 
 from . import __version__, briefing, catalogue, cube, detective, investigate, llm, palette, regions, terrain
 from .chart import place_chart
-from .sources import events, geos, gibs, indices
+from .sources import events, geos, gibs, indices, weather
 from .sources.cache import cached_text
 from .stats import forecast
 from .vitals import VITALS
@@ -32,6 +32,7 @@ GEOCODER = "https://geocoding-api.open-meteo.com/v1/search"
 async def _lifespan(_: FastAPI):
     # Fetch any global grids not on disk yet, without holding up the first page.
     cube.warm_in_background()
+    weather.refresh_in_background()
     yield
 
 
@@ -179,6 +180,31 @@ def wind() -> dict:
         return geos.wind_grid()
     except (httpx.HTTPError, ValueError, KeyError) as exc:
         raise HTTPException(502, f"NASA GEOS did not answer: {exc}") from exc
+
+
+@app.get("/api/weather")
+def weather_day() -> dict:
+    """The last 24 hours of global weather, hour by hour: what is ready and how to read it."""
+    return weather.meta()
+
+
+@app.get("/api/weather/{field}")
+def weather_field(field: str) -> Response:
+    """One field for every hour of the day, one byte per grid value (see /api/weather)."""
+    try:
+        return Response(weather.field_bytes(field), media_type="application/octet-stream",
+                        headers={"Cache-Control": "max-age=600"})
+    except KeyError as exc:
+        raise HTTPException(404, f"No weather field {field!r} is ready.") from exc
+
+
+@app.get("/api/satellite")
+def satellite_loop() -> list[dict]:
+    """Geostationary satellite imagery for the last three hours (NASA GIBS)."""
+    try:
+        return gibs.geostationary()
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"NASA GIBS did not answer: {exc}") from exc
 
 
 @app.get("/api/now")

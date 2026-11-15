@@ -236,8 +236,12 @@ def build(out_dir: Path = OUT_DIR) -> dict:
         area = float(w[valid].sum())
         vmax = _nice(float(np.nanpercentile(np.abs(per_decade[valid]), 98)))
         stops = palette.rising_stops(variable.id, variable.theme)
-        rgba = to_mercator(diverging_rgba(per_decade, vmax, significant, stops), lats, lons)
-        Image.fromarray(rgba, "RGBA").save(out_dir / f"trend_{variable.id}.png", optimize=True)
+        # The grid itself, for the browser to draw smoothly on the GPU and to read under the
+        # cursor: one signed byte per cell (change / scale_max x 127, -128 where there is no
+        # data), then one byte of status per cell (0 no data, 1 could be chance, 2 significant).
+        q = np.where(valid, np.clip(np.round(per_decade / vmax * 127), -127, 127), -128).astype(np.int8)
+        status = np.where(~valid, 0, np.where(significant, 2, 1)).astype(np.uint8)
+        (out_dir / f"trend_{variable.id}.bin").write_bytes(q.tobytes() + status.tobytes())
 
         # The alarm map counts the ten vital signs only.
         if variable.id in vital_ids:
@@ -259,7 +263,9 @@ def build(out_dir: Path = OUT_DIR) -> dict:
             "vital": variable.id in vital_ids,
             "definition": variable.definition,
             "source": variable.source,
-            "image": f"maps/trend_{variable.id}.png",
+            "grid": {"file": f"maps/trend_{variable.id}.bin", "nlat": int(lats.size), "nlon": int(lons.size),
+                     "lat0": float(lats[0]), "dlat": float(lats[1] - lats[0]),
+                     "lon0": float(lons[0]), "dlon": float(lons[1] - lons[0])},
             "period": [int(years[0]), int(years[-1])],
             "scale_max": vmax,
             "family": variable.family,

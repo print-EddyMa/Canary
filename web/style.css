@@ -113,7 +113,7 @@
 }
 
 /* Things that float over the globe keep the dark values whatever the theme. */
-.dock, .legend-card, .hud, .map-note, .maplibregl-popup, .tour {
+.dock, .legend-card, .modes, .timeline, .statusbar, .map-note, .maplibregl-popup, .tour {
   color-scheme: dark;
   --surface: #15181c; --surface-2: #1c2025; --surface-3: #262b31;
   --line: #2a2f35; --line-strong: #474e57;
@@ -262,7 +262,7 @@ select { height: 34px; padding: 0 6px; background: var(--surface); border: 1px s
 
 .dock { position: absolute; top: 12px; left: 12px; z-index: 3; width: var(--dock-width); max-height: calc(100% - 24px); display: flex; flex-direction: column; gap: 4px; pointer-events: none; }
 .dock > * { pointer-events: auto; }
-.dock-toggle, .dock-body, .legend-card, .hud, .map-note { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); }
+.dock-toggle, .dock-body, .legend-card, .map-note { background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--radius); }
 .dock-toggle { align-self: flex-start; display: inline-flex; align-items: center; gap: 8px; height: 32px; padding: 0 10px; color: var(--ink); font-weight: 500; font-size: 13px; box-shadow: var(--shadow); }
 .dock-toggle svg { width: 15px; height: 15px; color: var(--ink-2); }
 .dock-body { overflow-y: auto; padding: 4px 10px 8px; font-size: 13px; min-height: 0; box-shadow: var(--shadow); }
@@ -277,7 +277,7 @@ select { height: 34px; padding: 0 6px; background: var(--surface); border: 1px s
 .date-row input { flex: 1; min-width: 0; padding: 3px 6px; color: var(--ink); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); }
 .date-row button { padding: 3px 8px; color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line-strong); border-radius: var(--radius); }
 
-.legend-card { position: absolute; left: 12px; bottom: 12px; z-index: 2; width: 300px; max-width: calc(100% - var(--panel-width) - 24px); max-height: 46%; overflow-y: auto; padding: 10px 12px; font-size: 12.5px; box-shadow: var(--shadow); }
+.legend-card { position: absolute; left: 12px; bottom: 40px; z-index: 2; width: 300px; max-width: calc(100% - var(--panel-width) - 24px); max-height: 46%; overflow-y: auto; padding: 10px 12px; font-size: 12.5px; box-shadow: var(--shadow); }
 .legend-block + .legend-block, .legend-card .opacity + .legend-block { margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
 .legend-card h3 { margin: 0 0 6px; font-size: 12.5px; }
 .legend-card p { margin: 6px 0 0; color: var(--ink-2); font-size: 12.5px; }
@@ -298,8 +298,42 @@ select { height: 34px; padding: 0 6px; background: var(--surface); border: 1px s
 .opacity { display: flex; align-items: center; gap: 8px; margin-top: 8px; color: var(--ink-3); font-size: 12px; }
 .opacity input { flex: 1; accent-color: var(--canary); }
 
-.hud { position: absolute; top: 12px; left: 50%; left: calc((100% - var(--panel-width)) / 2); transform: translateX(-50%); z-index: 1; padding: 3px 10px; font-family: var(--mono); font-size: 12px; color: var(--ink-2); white-space: pre; pointer-events: none; }
-.hud:empty { display: none; }
+/* What the globe shows: a three-way switch at the top of the map */
+.modes { position: absolute; top: 12px; left: calc((100% - var(--panel-width)) / 2); transform: translateX(-50%); z-index: 3;
+  display: flex; padding: 3px; gap: 2px; background: rgba(21, 24, 28, 0.88); border: 1px solid var(--line-strong); border-radius: 6px;
+  box-shadow: var(--shadow); backdrop-filter: blur(6px); }
+.modes button { min-width: 84px; height: 28px; padding: 0 12px; font-size: 13px; font-weight: 500; color: var(--ink-2); background: none; border: 0; border-radius: 4px; }
+.modes button:hover { color: var(--ink); background: var(--surface-2); }
+.modes button[aria-pressed="true"] { color: #111418; background: #ecebe6; }
+
+/* The timeline: play, scrub, and the moment shown */
+.timeline { position: absolute; bottom: 40px; left: calc((100% - var(--panel-width)) / 2); transform: translateX(-50%); z-index: 3;
+  display: flex; align-items: center; gap: 12px; width: min(640px, calc(100% - var(--panel-width) - 24px));
+  padding: 10px 14px 8px 10px; background: rgba(21, 24, 28, 0.92); border: 1px solid var(--line-strong); border-radius: 6px; box-shadow: var(--shadow); backdrop-filter: blur(6px); }
+.timeline-play { flex: none; display: grid; place-items: center; width: 36px; height: 36px; color: #111418; background: #ecebe6; border: 0; border-radius: 50%; }
+.timeline-play:hover { background: #ffffff; }
+.timeline-play svg { width: 16px; height: 16px; }
+.timeline-play .i-pause, .timeline-play[data-state="playing"] .i-play { display: none; }
+.timeline-play[data-state="playing"] .i-pause { display: block; }
+.timeline-track { flex: 1; min-width: 0; }
+.timeline-meta { display: flex; justify-content: space-between; gap: 12px; margin-top: 2px; font-size: 12px; }
+#timeline-label { color: var(--ink); font-family: var(--mono); font-size: 12px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+#timeline-note { color: var(--ink-3); white-space: nowrap; }
+.timeline input[type="range"] { width: 100%; margin: 0; height: 18px; background: none; -webkit-appearance: none; appearance: none; cursor: pointer; }
+.timeline input[type="range"]::-webkit-slider-runnable-track { height: 4px; background: linear-gradient(90deg, #474e57, #858b93); border-radius: 2px; }
+.timeline input[type="range"]::-moz-range-track { height: 4px; background: linear-gradient(90deg, #474e57, #858b93); border-radius: 2px; }
+.timeline input[type="range"]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -5px; background: var(--canary); border: 2px solid #111418; border-radius: 50%; }
+.timeline input[type="range"]::-moz-range-thumb { width: 12px; height: 12px; background: var(--canary); border: 2px solid #111418; border-radius: 50%; }
+
+/* The status bar along the bottom of the map: where the cursor is and what is there */
+.statusbar { position: absolute; left: 0; right: var(--panel-width); bottom: 0; z-index: 3; display: flex; align-items: center; gap: 18px;
+  height: 28px; padding: 0 12px; font-family: var(--mono); font-size: 11.5px; color: var(--ink-2);
+  background: rgba(11, 14, 19, 0.86); border-top: 1px solid var(--line); backdrop-filter: blur(6px); white-space: nowrap; overflow: hidden; }
+#status-where { color: var(--ink-3); flex: none; }
+#status-value { color: var(--ink); flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+#status-time { color: var(--ink-3); flex: none; }
+.maplibregl-ctrl-bottom-right, .maplibregl-ctrl-bottom-left { bottom: 28px; }
+#explore:has(.timeline:not([hidden])) .legend-card { bottom: 108px; max-height: calc(100% - 170px); }
 .map-note { position: absolute; top: 52px; left: calc((100% - var(--panel-width)) / 2); transform: translateX(-50%); z-index: 4; display: flex; align-items: center; gap: 10px; padding: 8px 10px 8px 12px; font-size: 13px; box-shadow: var(--shadow); }
 
 .maplibregl-popup-content { background: var(--surface); color: var(--ink); border: 1px solid var(--line-strong); border-radius: var(--radius); padding: 10px 28px 10px 12px; font: inherit; font-size: 13px; box-shadow: var(--shadow); }
@@ -660,7 +694,13 @@ button.evidence-chip:hover { border-color: var(--ink); }
   .panel { top: 50%; left: 0; width: auto; border-left: 0; border-top: 1px solid var(--line); }
   .legend-card { max-width: calc(100% - 24px); width: 260px; max-height: 40%; }
   .legend-card p:not(.fine) { display: none; }
-  .hud, .maplibregl-ctrl-bottom-right .maplibregl-ctrl-scale { display: none; }
+  .maplibregl-ctrl-bottom-right .maplibregl-ctrl-scale { display: none; }
+  .statusbar { right: 0; bottom: 50%; }
+  #status-where { display: none; }
+  .timeline { left: 50%; bottom: calc(50% + 36px); width: calc(100% - 24px); min-width: 0; }
+  .legend-card { bottom: calc(50% + 36px); }
+  #explore:has(.timeline:not([hidden])) .legend-card { display: none; }
+  .modes button { min-width: 0; }
   .map-note { top: 12px; left: 50%; max-width: calc(100% - 24px); }
   .tour { left: 50%; top: 52px; width: calc(100% - 24px); flex-direction: column; align-items: stretch; }
 }

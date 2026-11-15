@@ -9,6 +9,7 @@ levels and legends from the live capabilities document.
 from __future__ import annotations
 
 import re
+from datetime import datetime, timedelta
 from dataclasses import dataclass
 
 import httpx
@@ -134,4 +135,46 @@ def catalogue() -> list[dict]:
             "period": period,
             "legend": legend.group(1) if legend else None,
         })
+    return out
+
+
+# Geostationary satellites: a new full-disk image every 10 minutes. Together they cover the
+# Americas (GOES-East), the Pacific (GOES-West) and Asia and Australia (Himawari). GIBS has no
+# Meteosat imagery, so Europe and Africa are not covered by the loop.
+GEOSTATIONARY = [
+    ("goes_east", "GOES-East_ABI_GeoColor", "GOES-East GeoColor", "NOAA GOES-East ABI: true colour by day, infrared and city lights by night"),
+    ("goes_west", "GOES-West_ABI_GeoColor", "GOES-West GeoColor", "NOAA GOES-West ABI: true colour by day, infrared and city lights by night"),
+    ("himawari", "Himawari_AHI_Band13_Clean_Infrared", "Himawari infrared", "JMA Himawari AHI band 13 (10.4 µm): cold cloud tops are bright"),
+]
+
+
+def _latest_times(xml: str, count: int) -> list[str]:
+    """The last `count` image times listed in a layer's time dimension."""
+    times: list[datetime] = []
+    for value in re.findall(r"<Value>(.*?)</Value>", xml)[::-1]:
+        start, end, period = value.split("/")
+        step = timedelta(minutes=int(re.match(r"PT(\d+)M", period).group(1))) if period.startswith("PT") else None
+        t, first = datetime.fromisoformat(end.replace("Z", "+00:00")), datetime.fromisoformat(start.replace("Z", "+00:00"))
+        while t >= first and len(times) < count:
+            times.append(t)
+            if step is None:
+                break
+            t -= step
+        if len(times) >= count:
+            break
+    return [t.strftime("%Y-%m-%dT%H:%M:%SZ") for t in sorted(times)]
+
+
+def geostationary(frames: int = 18) -> list[dict]:
+    """The latest images of each geostationary satellite, for a loop of the last few hours."""
+    doc = cached_text("gibs", "capabilities_live.xml", _fetch, max_age_days=10 / 1440)
+    out = []
+    for key, identifier, label, about in GEOSTATIONARY:
+        xml = _layer_xml(doc, identifier)
+        if xml is None:
+            continue
+        matrix = re.search(r"<TileMatrixSet>(.*?)</TileMatrixSet>", xml).group(1)
+        out.append({"key": key, "label": label, "about": about,
+                    "tiles": f"{TILE_ROOT}/{identifier}/default/{{time}}/{matrix}/{{z}}/{{y}}/{{x}}.png",
+                    "maxzoom": int(matrix.rsplit("Level", 1)[1]), "times": _latest_times(xml, frames)})
     return out

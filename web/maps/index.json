@@ -48,7 +48,15 @@
    "vital": true,
    "definition": "Average air temperature two metres above the ground.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_temperature.png",
+   "grid": {
+    "file": "maps/trend_temperature.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -82,7 +90,15 @@
    "vital": false,
    "definition": "The highest air temperature reached during the year.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_temperature_max.png",
+   "grid": {
+    "file": "maps/trend_temperature_max.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -116,7 +132,15 @@
    "vital": false,
    "definition": "The lowest air temperature reached during the year.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_temperature_min.png",
+   "grid": {
+    "file": "maps/trend_temperature_min.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -150,7 +174,15 @@
    "vital": false,
    "definition": "Temperature of the surface itself (soil, rock, water or ice), which is hotter than the air on sunny days.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_ground_temperature.png",
+   "grid": {
+    "file": "maps/trend_ground_temperature.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -184,7 +216,15 @@
    "vital": false,
    "definition": "Number of days in the year when the temperature fell below freezing.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_frost_days.png",
+   "grid": {
+    "file": "maps/trend_frost_days.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -218,7 +258,15 @@
    "vital": false,
    "definition": "How much, and for how long, it was warmer than 18.3 \u00b0C: a standard measure of the need for air conditioning.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_cooling_demand.png",
+   "grid": {
+    "file": "maps/trend_cooling_demand.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -252,7 +300,15 @@
    "vital": false,
    "definition": "How much, and for how long, it was colder than 18.3 \u00b0C: a standard measure of the need for heating.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_heating_demand.png",
+   "grid": {
+    "file": "maps/trend_heating_demand.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -286,7 +342,15 @@
    "vital": true,
    "definition": "Average rain and snowfall per day, corrected against rain gauges.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_precipitation.png",
+   "grid": {
+    "file": "maps/trend_precipitation.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -320,7 +384,15 @@
    "vital": true,
    "definition": "How full of water the top metre of soil is, where plant roots drink: 0 is completely dry, 1 is saturated.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_soil_wetness.png",
+   "grid": {
+    "file": "maps/trend_soil_wetness.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -354,7 +426,15 @@
    "vital": false,
    "definition": "How wet the top few centimetres of soil are: 0 is completely dry, 1 is saturated.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_surface_soil_wetness.png",
+   "grid": {
+    "file": "maps/trend_surface_soil_wetness.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -388,7 +468,15 @@
    "vital": true,
    "definition": "Water returned to the air from soil and plants each day.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_evaporation.png",
+   "grid": {
+    "file": "maps/trend_evaporation.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -422,7 +510,15 @@
    "vital": true,
    "definition": "Grams of water vapour in each kilogram of air near the ground (specific humidity).",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_humidity.png",
+   "grid": {
+    "file": "maps/trend_humidity.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -456,7 +552,15 @@
    "vital": false,
    "definition": "How close the air is to holding all the water vapour it can at its temperature.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_relative_humidity.png",
+   "grid": {
+    "file": "maps/trend_relative_humidity.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -490,7 +594,15 @@
    "vital": false,
    "definition": "All the water vapour in the column of air above a square metre of ground.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_water_vapour.png",
+   "grid": {
+    "file": "maps/trend_water_vapour.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -524,7 +636,15 @@
    "vital": false,
    "definition": "Average snowfall per day, as the depth of water it would melt to.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_snowfall.png",
+   "grid": {
+    "file": "maps/trend_snowfall.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -558,7 +678,15 @@
    "vital": true,
    "definition": "Average depth of snow lying on the ground.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_snow.png",
+   "grid": {
+    "file": "maps/trend_snow.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -592,7 +720,15 @@
    "vital": false,
    "definition": "Share of the land covered by snow, averaged over the year.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_snow_cover.png",
+   "grid": {
+    "file": "maps/trend_snow_cover.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -626,7 +762,15 @@
    "vital": false,
    "definition": "Share of the sea surface covered by ice, averaged over the year.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_sea_ice.png",
+   "grid": {
+    "file": "maps/trend_sea_ice.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -660,7 +804,15 @@
    "vital": true,
    "definition": "Solar energy arriving at the surface each day, after clouds and haze.",
    "source": "NASA POWER (CERES SYN1deg satellite record)",
-   "image": "maps/trend_sunlight.png",
+   "grid": {
+    "file": "maps/trend_sunlight.bin",
+    "nlat": 180,
+    "nlon": 360,
+    "lat0": -89.5,
+    "dlat": 1.0,
+    "lon0": -179.5,
+    "dlon": 1.0
+   },
    "period": [
     2001,
     2025
@@ -694,7 +846,15 @@
    "vital": true,
    "definition": "Share of the sky covered by cloud, averaged over the year.",
    "source": "NASA POWER (CERES SYN1deg satellite record)",
-   "image": "maps/trend_cloud.png",
+   "grid": {
+    "file": "maps/trend_cloud.bin",
+    "nlat": 180,
+    "nlon": 360,
+    "lat0": -89.5,
+    "dlat": 1.0,
+    "lon0": -179.5,
+    "dlon": 1.0
+   },
    "period": [
     2001,
     2025
@@ -728,7 +888,15 @@
    "vital": true,
    "definition": "How much dust, smoke and pollution is suspended in the air column, measured by how strongly it dims light.",
    "source": "NASA POWER (CERES SYN1deg satellite record)",
-   "image": "maps/trend_haze.png",
+   "grid": {
+    "file": "maps/trend_haze.bin",
+    "nlat": 180,
+    "nlon": 360,
+    "lat0": -89.5,
+    "dlat": 1.0,
+    "lon0": -179.5,
+    "dlon": 1.0
+   },
    "period": [
     2001,
     2025
@@ -762,7 +930,15 @@
    "vital": false,
    "definition": "Share of sunlight the surface bounces back (albedo). Snow and ice are bright; forest and open water are dark.",
    "source": "NASA POWER (CERES SYN1deg satellite record)",
-   "image": "maps/trend_reflectivity.png",
+   "grid": {
+    "file": "maps/trend_reflectivity.bin",
+    "nlat": 180,
+    "nlon": 360,
+    "lat0": -89.5,
+    "dlat": 1.0,
+    "lon0": -179.5,
+    "dlon": 1.0
+   },
    "period": [
     2001,
     2025
@@ -796,7 +972,15 @@
    "vital": false,
    "definition": "Total ozone in the column of air overhead, which shields the surface from ultraviolet light.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_ozone.png",
+   "grid": {
+    "file": "maps/trend_ozone.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -830,7 +1014,15 @@
    "vital": true,
    "definition": "Average wind speed ten metres above the ground.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_wind.png",
+   "grid": {
+    "file": "maps/trend_wind.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -864,7 +1056,15 @@
    "vital": false,
    "definition": "The highest wind speed reached during the year.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_wind_max.png",
+   "grid": {
+    "file": "maps/trend_wind_max.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025
@@ -898,7 +1098,15 @@
    "vital": false,
    "definition": "The weight of the air, adjusted to sea level so that places at different heights can be compared.",
    "source": "NASA POWER (MERRA-2 reanalysis)",
-   "image": "maps/trend_pressure.png",
+   "grid": {
+    "file": "maps/trend_pressure.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
    "period": [
     1981,
     2025

@@ -46,7 +46,28 @@
     </nav>
 
     <section id="legend" class="legend-card" aria-live="polite" hidden></section>
-    <div id="hud" class="hud" aria-hidden="true"></div>
+    <div class="modes" role="group" aria-label="What the globe shows">
+      <button type="button" data-mode="trends" aria-pressed="true" title="Long-term trend of the chosen variable, 1981–2025">Trends</button>
+      <button type="button" data-mode="weather" aria-pressed="false" title="The last 24 hours of clouds, rain, temperature and wind (NASA GEOS-FP)">Weather</button>
+      <button type="button" data-mode="satellite" aria-pressed="false" title="Geostationary satellite images, last 3 hours">Satellite</button>
+    </div>
+
+    <div id="timeline" class="timeline" hidden>
+      <button id="timeline-play" class="timeline-play" type="button" aria-label="Play" data-state="paused">
+        <svg class="i-play" viewBox="0 0 16 16" aria-hidden="true"><path d="M5 3.5v9l7.5-4.5z" fill="currentColor"/></svg>
+        <svg class="i-pause" viewBox="0 0 16 16" aria-hidden="true"><path d="M4.5 3.5h2.5v9H4.5zM9 3.5h2.5v9H9z" fill="currentColor"/></svg>
+      </button>
+      <div class="timeline-track">
+        <input id="timeline-range" type="range" min="0" max="1" step="0.01" value="0" aria-label="Time">
+        <div class="timeline-meta"><span id="timeline-label"></span><span id="timeline-note"></span></div>
+      </div>
+    </div>
+
+    <div class="statusbar">
+      <span id="status-where">Move over the globe to read it</span>
+      <span id="status-value"></span>
+      <span id="status-time"></span>
+    </div>
     <div id="map-note" class="map-note" role="status" hidden></div>
 
     <aside id="panel" class="panel">
