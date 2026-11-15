@@ -11,6 +11,8 @@ from __future__ import annotations
 
 from dataclasses import dataclass
 
+from . import palette
+
 MERRA2 = "NASA POWER (MERRA-2 reanalysis)"
 CERES = "NASA POWER (CERES SYN1deg satellite record)"
 
@@ -34,7 +36,6 @@ class Variable:
     store: str = "merra2"  # which POWER Zarr store holds it
     factor: float = 1.0  # native unit -> displayed unit
     decimals: int = 2
-    red_when_rising: bool = False  # map colour: red for warmer / drier / dustier
     min_mean: float | None = None  # skip cells whose long-term mean is below this (no snow, no ice)
     start_year: int | None = None
     caution: str = ""  # a known weakness of this variable, shown with every result
@@ -42,6 +43,16 @@ class Variable:
     @property
     def source(self) -> str:
         return CERES if self.store == "syn1deg" else MERRA2
+
+    @property
+    def family(self) -> str:
+        """Its colour family: thermal, water or air (see canary/palette.py)."""
+        return palette.family(self.theme)
+
+    @property
+    def up(self) -> str:
+        """Which pole of the family an increase points to: "a" or "b"."""
+        return palette.UP[self.id]
 
 
 REANALYSIS_WATER = ("Comes from a weather model constrained by observations. The mix of satellites feeding the "
@@ -52,19 +63,19 @@ REANALYSIS_WIND = ("Model winds are sensitive to changes in the observing system
 VARIABLES: tuple[Variable, ...] = (
     # ---- heat ----
     Variable("temperature", "T2M", "Air temperature", "°C", "heat",
-             "Average air temperature two metres above the ground.", red_when_rising=True),
+             "Average air temperature two metres above the ground."),
     Variable("temperature_max", "T2M_MAX", "Hottest temperature of the year", "°C", "heat",
-             "The highest air temperature reached during the year.", red_when_rising=True),
+             "The highest air temperature reached during the year."),
     Variable("temperature_min", "T2M_MIN", "Coldest temperature of the year", "°C", "heat",
-             "The lowest air temperature reached during the year.", red_when_rising=True),
+             "The lowest air temperature reached during the year."),
     Variable("ground_temperature", "TS", "Ground temperature", "°C", "heat",
              "Temperature of the surface itself (soil, rock, water or ice), which is hotter than the air on "
-             "sunny days.", red_when_rising=True),
+             "sunny days."),
     Variable("frost_days", "FROST_DAYS", "Frost days", "days", "heat",
              "Number of days in the year when the temperature fell below freezing.", decimals=1, min_mean=1.0),
     Variable("cooling_demand", "CDD18_3", "Cooling demand", "degree-days", "heat",
              "How much, and for how long, it was warmer than 18.3 °C: a standard measure of the need for air "
-             "conditioning.", decimals=0, red_when_rising=True, min_mean=10.0),
+             "conditioning.", decimals=0, min_mean=10.0),
     Variable("heating_demand", "HDD18_3", "Heating demand", "degree-days", "heat",
              "How much, and for how long, it was colder than 18.3 °C: a standard measure of the need for "
              "heating.", decimals=0, min_mean=10.0),
@@ -98,12 +109,12 @@ VARIABLES: tuple[Variable, ...] = (
     # ---- air and sky ----
     Variable("sunlight", "ALLSKY_SFC_SW_DWN", "Sunlight reaching the ground", "MJ/m²/day", "sky",
              "Solar energy arriving at the surface each day, after clouds and haze.",
-             store="syn1deg", factor=0.0864, red_when_rising=True, start_year=2001),
+             store="syn1deg", factor=0.0864, start_year=2001),
     Variable("cloud", "CLOUD_AMT", "Cloud cover", "%", "sky",
              "Share of the sky covered by cloud, averaged over the year.", store="syn1deg", decimals=1, start_year=2001),
     Variable("haze", "AOD_55", "Haze (aerosols)", "optical depth", "sky",
              "How much dust, smoke and pollution is suspended in the air column, measured by how strongly it "
-             "dims light.", store="syn1deg", decimals=3, red_when_rising=True, start_year=2001),
+             "dims light.", store="syn1deg", decimals=3, start_year=2001),
     Variable("reflectivity", "ALLSKY_SRF_ALB", "Surface reflectivity", "fraction", "sky",
              "Share of sunlight the surface bounces back (albedo). Snow and ice are bright; forest and open "
              "water are dark.", store="syn1deg", decimals=3, start_year=2001),
@@ -112,12 +123,12 @@ VARIABLES: tuple[Variable, ...] = (
              decimals=1),
     # ---- wind and pressure ----
     Variable("wind", "WS10M", "Wind speed", "m/s", "wind",
-             "Average wind speed ten metres above the ground.", red_when_rising=True, caution=REANALYSIS_WIND),
+             "Average wind speed ten metres above the ground.", caution=REANALYSIS_WIND),
     Variable("wind_max", "WS10M_MAX", "Strongest wind of the year", "m/s", "wind",
-             "The highest wind speed reached during the year.", red_when_rising=True, caution=REANALYSIS_WIND),
+             "The highest wind speed reached during the year.", caution=REANALYSIS_WIND),
     Variable("pressure", "SLP", "Air pressure", "hPa", "wind",
              "The weight of the air, adjusted to sea level so that places at different heights can be compared.",
-             decimals=1, red_when_rising=True),
+             decimals=1),
 )
 
 BY_ID = {v.id: v for v in VARIABLES}

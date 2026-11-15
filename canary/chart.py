@@ -6,6 +6,7 @@ import math
 
 import numpy as np
 
+from . import catalogue
 from .sources import indices, power
 from .stats import ews, forecast, teleconnect, trend
 from .vitals import VITALS, Vital
@@ -220,6 +221,10 @@ def place_chart(lat: float, lon: float) -> dict:
 
     _add_suspects(vitals)
     for v in vitals:
+        # Colour family, so a place's vital signs read in the same colours as the globe.
+        variable = catalogue.BY_ID.get(v["id"])
+        if variable:
+            v["family"], v["up"] = variable.family, variable.up
         for key in ("_anomalies", "_years", "_months"):
             del v[key]
 

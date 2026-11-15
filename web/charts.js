@@ -16,14 +16,14 @@ export function niceTicks(min, max, count = 4) {
  * One series against a numeric x axis.
  *
  * x, y        arrays (y may contain null gaps)
- * fit         optional [{x, y}, {x, y}] straight line; fitStrong draws it bold
+ * fit         optional [{x, y}, {x, y}] straight line; fitStrong draws it bold, in fitColour if given
  * zeroLine    draw and label a zero baseline (anomaly charts)
  * area        fill under the line (profiles)
  * xTicks      "decades" or "auto"; xFormat formats auto ticks
  * rows(i)     tooltip lines for point i (first line is the heading)
  * onHover(i)  called with the hovered index, or null when the pointer leaves
  */
-export function lineChart({ x, y, fit, fitStrong, zeroLine, area, xTicks = "decades", xFormat, rows, label, onHover, height = 150, width = 400 }) {
+export function lineChart({ x, y, fit, fitStrong, fitColour, zeroLine, area, xTicks = "decades", xFormat, rows, label, onHover, height = 150, width = 400 }) {
   const W = width, H = height, m = { l: 46, r: 14, t: 8, b: 20 };
   const valid = y.map((v, i) => (v == null ? null : i)).filter((i) => i != null);
   const values = valid.map((i) => y[i]).concat(fit ? fit.map((p) => p.y) : [], zeroLine || area ? [0] : []);
@@ -70,10 +70,13 @@ export function lineChart({ x, y, fit, fitStrong, zeroLine, area, xTicks = "deca
   }
   root.append(svg("path", { class: "data", d }));
   if (fit) {
-    root.append(svg("line", {
+    const line = svg("line", {
       class: fitStrong ? "fit" : "fit weak",
       x1: sx(fit[0].x), y1: sy(fit[0].y), x2: sx(fit[1].x), y2: sy(fit[1].y),
-    }));
+    });
+    // Colour is earned: a significant trend takes its family colour.
+    if (fitStrong && fitColour) line.style.stroke = fitColour;
+    root.append(line);
   }
   const last = valid[valid.length - 1];
   if (!area) root.append(svg("circle", { class: "end-dot", cx: sx(x[last]), cy: sy(y[last]), r: 4 }));

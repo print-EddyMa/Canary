@@ -23,6 +23,7 @@ import numpy as np
 from numba import njit, prange
 from scipy import stats
 
+from . import palette
 from .vitals import VITALS
 
 OUT_DIR = Path(__file__).resolve().parent.parent / "web" / "maps"
@@ -159,22 +160,17 @@ def _ramp(stops: list[str], t: np.ndarray) -> np.ndarray:
     return (rgb[lo] * (1 - frac) + rgb[lo + 1] * frac).round().astype(np.uint8)
 
 
-# Diverging: two hues around a neutral grey midpoint. On a dark map the
-# strongest values are the brightest.
-NEUTRAL = "#4a4a46"
-BLUE_ARM = [NEUTRAL, "#256abf", "#3987e5", "#9ec5f4"]
-RED_ARM = [NEUTRAL, "#b83a35", "#e66767", "#ffc2b8"]
-# Sequential, one hue: Canary yellow.
-ALARM_RAMP = ["#4d3a0c", "#b37a00", "#fab219", "#fff0b8"]
+# Diverging: the variable's colour family (canary/palette.py) around a neutral grey
+# midpoint. On the dark globe the strongest values are the brightest.
+ALARM_RAMP = palette.EMBER
 
 
-def diverging_rgba(values, vmax, significant, red_when_positive):
+def diverging_rgba(values, vmax, significant, stops):
+    """stops: the family's steps ordered from the strongest fall to the strongest rise."""
     values = np.where(np.isfinite(values), values, np.nan)
     with np.errstate(invalid="ignore"):
-        t = np.clip(np.abs(values) / vmax, 0, 1)
-        positive = values >= 0
-    red = positive if red_when_positive else ~positive
-    rgb = np.where(red[..., None], _ramp(RED_ARM, t), _ramp(BLUE_ARM, t))
+        t = (np.clip(values / vmax, -1, 1) + 1) / 2
+    rgb = _ramp(stops, t)
     alpha = np.where(significant, 235, 70).astype(np.uint8)
     alpha[~np.isfinite(values)] = 0
     return np.dstack([rgb, alpha])
@@ -239,8 +235,8 @@ def build(out_dir: Path = OUT_DIR) -> dict:
         w = _area_weights(lats, shape)
         area = float(w[valid].sum())
         vmax = _nice(float(np.nanpercentile(np.abs(per_decade[valid]), 98)))
-        red_pos = variable.red_when_rising
-        rgba = to_mercator(diverging_rgba(per_decade, vmax, significant, red_pos), lats, lons)
+        stops = palette.rising_stops(variable.id, variable.theme)
+        rgba = to_mercator(diverging_rgba(per_decade, vmax, significant, stops), lats, lons)
         Image.fromarray(rgba, "RGBA").save(out_dir / f"trend_{variable.id}.png", optimize=True)
 
         # The alarm map counts the ten vital signs only.
@@ -266,7 +262,9 @@ def build(out_dir: Path = OUT_DIR) -> dict:
             "image": f"maps/trend_{variable.id}.png",
             "period": [int(years[0]), int(years[-1])],
             "scale_max": vmax,
-            "red_when_rising": red_pos,
+            "family": variable.family,
+            "up": variable.up,
+            "stops": stops,
             "percent_significant": round(100 * float(w[valid & significant].sum()) / area, 1),
             "percent_rising": round(100 * float(w[valid & significant & (per_decade > 0)].sum()) / area, 1),
             "percent_falling": round(100 * float(w[valid & significant & (per_decade < 0)].sum()) / area, 1),
@@ -290,7 +288,8 @@ def build(out_dir: Path = OUT_DIR) -> dict:
         "generated": time.strftime("%Y-%m-%d"),
         "false_discovery_rate": FDR,
         "bounds": [-180, -MERCATOR_MAX_LAT, 180, MERCATOR_MAX_LAT],
-        "colors": {"blue_arm": BLUE_ARM, "red_arm": RED_ARM, "alarm": ALARM_RAMP},
+        "colors": {"alarm": ALARM_RAMP},
+        "families": palette.FAMILIES,
         "method": "Calendar-year means per grid cell; Theil-Sen slope; Mann-Kendall test with "
                   "autocorrelation correction; Benjamini-Hochberg false-discovery control across "
                   "all cells of each map. Faint cells have a trend that could be chance.",

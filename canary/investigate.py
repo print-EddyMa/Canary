@@ -207,7 +207,7 @@ def analyse(variable_id: str, region: str, start: int | None = None, end: int | 
         "variable": {"id": variable.id, "label": variable.label, "unit": unit, "definition": variable.definition,
                      "theme": variable.theme, "source": variable.source, "parameter": variable.parameter,
                      "decimals": variable.decimals, "caution": variable.caution,
-                     "red_when_rising": variable.red_when_rising, "record": [first, last]},
+                     "family": variable.family, "up": variable.up, "record": [first, last]},
         "region": {**info, "cells": cells},
         "period": [int(t[0]), int(t[-1])],
         "years": [int(v) for v in years[window]],
@@ -260,7 +260,8 @@ def rank(info: dict, analyses: list[dict], waiting: list[str]) -> dict:
     """
     rows = [{
         "id": a["variable"]["id"], "label": a["variable"]["label"], "unit": a["variable"]["unit"],
-        "theme": a["variable"]["theme"], "direction": a["trend"]["direction"],
+        "theme": a["variable"]["theme"], "family": a["variable"]["family"], "up": a["variable"]["up"],
+        "years": a["years"], "values": a["values"], "normal": a["normal"], "direction": a["trend"]["direction"],
         "per_decade": a["trend"]["per_decade"], "signal_to_noise": a["trend"]["signal_to_noise"],
         "p": a["tests"]["mann_kendall"]["p"], "period": a["period"],
     } for a in analyses]

@@ -10,6 +10,8 @@ const TERRAIN_TILES = "https://s3.amazonaws.com/elevation-tiles-prod/terrarium/{
 const GIBS = "https://gibs.earthdata.nasa.gov/wmts/epsg3857/best";
 const WORLD = [[-180, 85.051129], [180, 85.051129], [180, -85.051129], [-180, -85.051129]];
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+// Snapshot build (no backend, no outside imagery): the globe shows Canary's own maps only.
+const PREVIEW = Boolean(window.CANARY_PREVIEW);
 
 const DEMOS = [
   { name: "Svalbard, Arctic Norway", lat: 78.2, lon: 15.6, note: "Among the fastest-warming places on Earth" },
@@ -24,9 +26,11 @@ const EVENT_KINDS = [
   ["severeStorms", "Severe storm", "#3987e5"],
   ["volcanoes", "Volcano", "#e66767"],
   ["seaLakeIce", "Iceberg or sea ice", "#199e70"],
-  ["earthquakes", "Earthquake", "#c98500"],
+  ["earthquakes", "Earthquake", "#e87ba4"],
 ];
-const OTHER_EVENT = "#d55181";
+const OTHER_EVENT = "#b8bcc1";
+// Canary yellow is never data: it marks where you are looking (the chosen place, a click).
+const CANARY = "#ffd21f";
 
 const state = {
   overlay: null, // null | {type: "alarm"} | {type: "trend", id} | {type: "gibs", key}
@@ -65,54 +69,59 @@ const map = new maplibregl.Map({
     projection: { type: "globe" },
     sky: { "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 5, 1, 7, 0] },
     sources: {
-      base: {
-        type: "raster",
-        tiles: [`${GIBS}/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg`],
-        tileSize: 256,
-        maxzoom: 8,
-        attribution: "Imagery: NASA GIBS",
-      },
-      borders: {
-        type: "raster",
-        tiles: [`${GIBS}/Reference_Features/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`],
-        tileSize: 256,
-        maxzoom: 9,
-      },
-      labels: {
-        type: "raster",
-        tiles: [`${GIBS}/Reference_Labels/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`],
-        tileSize: 256,
-        maxzoom: 9,
-        attribution: "Labels: OpenStreetMap contributors",
-      },
+      ...(PREVIEW ? {} : {
+        base: {
+          type: "raster",
+          tiles: [`${GIBS}/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg`],
+          tileSize: 256,
+          maxzoom: 8,
+          attribution: "Imagery: NASA GIBS",
+        },
+        borders: {
+          type: "raster",
+          tiles: [`${GIBS}/Reference_Features/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`],
+          tileSize: 256,
+          maxzoom: 9,
+        },
+        labels: {
+          type: "raster",
+          tiles: [`${GIBS}/Reference_Labels/default/GoogleMapsCompatible_Level9/{z}/{y}/{x}.png`],
+          tileSize: 256,
+          maxzoom: 9,
+          attribution: "Labels: OpenStreetMap contributors",
+        },
+      }),
       events: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
       raindrop: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
       drop: { type: "geojson", data: { type: "FeatureCollection", features: [] } },
     },
     layers: [
       { id: "space", type: "background", paint: { "background-color": "#05070c" } },
-      { id: "base", type: "raster", source: "base" },
-      { id: "borders", type: "raster", source: "borders", paint: { "raster-opacity": 0.55 } },
-      { id: "labels", type: "raster", source: "labels", minzoom: 2.5 },
+      ...(PREVIEW ? [] : [
+        { id: "base", type: "raster", source: "base" },
+        { id: "borders", type: "raster", source: "borders", paint: { "raster-opacity": 0.55 } },
+        { id: "labels", type: "raster", source: "labels", minzoom: 2.5 },
+      ]),
       { id: "storm-tracks", type: "line", source: "events", filter: ["==", ["get", "track"], true],
         paint: { "line-color": "#3987e5", "line-width": 2, "line-opacity": 0.8 } },
       { id: "raindrop-glow", type: "line", source: "raindrop",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#3987e5", "line-width": 9, "line-opacity": 0.35, "line-blur": 4 } },
+        paint: { "line-color": "#07aeaa", "line-width": 9, "line-opacity": 0.35, "line-blur": 4 } },
       { id: "raindrop-line", type: "line", source: "raindrop",
         layout: { "line-cap": "round", "line-join": "round" },
-        paint: { "line-color": "#cde2fb", "line-width": 2.5 } },
+        paint: { "line-color": "#2dd8d3", "line-width": 2.5 } },
       { id: "events", type: "circle", source: "events", filter: ["!=", ["get", "track"], true],
         paint: {
           "circle-radius": ["case", ["==", ["get", "kind"], "earthquakes"],
             ["interpolate", ["linear"], ["coalesce", ["get", "mag"], 4.5], 4.5, 4, 7.5, 13], 5.5],
           "circle-color": ["match", ["get", "kind"], ...EVENT_KINDS.flatMap(([k, , c]) => [k, c]), OTHER_EVENT],
-          "circle-stroke-color": "#0d0d0d",
-          "circle-stroke-width": 2,
+          // A white ring keeps events apart from the data cells underneath.
+          "circle-stroke-color": "rgba(255,255,255,0.85)",
+          "circle-stroke-width": 1.5,
           "circle-opacity": 0.95,
         } },
       { id: "drop", type: "circle", source: "drop",
-        paint: { "circle-radius": 6, "circle-color": "#ffffff", "circle-stroke-color": "#3987e5", "circle-stroke-width": 3 } },
+        paint: { "circle-radius": 6, "circle-color": "#ffffff", "circle-stroke-color": "#07aeaa", "circle-stroke-width": 3 } },
     ],
   },
 });
@@ -145,6 +154,7 @@ let baseShown = "blue_marble|";
 const aboveBase = () => ["hillshade", "overlay", "drainage", "borders"].find((id) => map.getLayer(id));
 
 function applyBase() {
+  if (!map.getLayer("base")) return;
   const layer = layerInfo(state.base);
   if (layer) {
     const signature = `${layer.key}|${effectiveDate(layer) ?? ""}`;
@@ -186,15 +196,15 @@ function applyOverlay() {
         "raster-fade-duration": 0,
         "raster-resampling": o.type === "gibs" ? "linear" : "nearest",
       },
-    }, map.getLayer("drainage") ? "drainage" : "borders");
+    }, ["drainage", "borders", "country-hit", "storm-tracks"].find((id) => map.getLayer(id)));
   }
   applyBase();
   renderLegend();
 }
 
 function applyToggles() {
-  map.setLayoutProperty("borders", "visibility", state.borders ? "visible" : "none");
-  map.setLayoutProperty("labels", "visibility", state.labels ? "visible" : "none");
+  if (map.getLayer("borders")) map.setLayoutProperty("borders", "visibility", state.borders ? "visible" : "none");
+  if (map.getLayer("labels")) map.setLayoutProperty("labels", "visibility", state.labels ? "visible" : "none");
   const kinds = [];
   if (state.events) kinds.push(["!=", ["get", "kind"], "earthquakes"]);
   if (state.quakes) kinds.push(["==", ["get", "kind"], "earthquakes"]);
@@ -243,15 +253,15 @@ function renderLegend() {
 
   if (o && o.type === "trend") {
     const l = maps.layers.find((x) => x.id === o.id);
-    const { blue_arm: blue, red_arm: red } = maps.colors;
-    const negative = l.red_when_rising ? blue : red;
-    const positive = l.red_when_rising ? red : blue;
+    const fam = maps.families && maps.families[l.family];
+    const [lowEnd, highEnd] = fam ? (l.up === "b" ? [fam.a, fam.b] : [fam.b, fam.a]) : ["", ""];
     parts.push(el("div", { class: "legend-block" },
       el("h3", { text: `${l.label}: change per decade` }),
-      el("div", { class: "ramp", style: `background:${gradient([...negative].reverse().concat(positive.slice(1)))}` }),
+      el("div", { class: "ramp", style: `background:${gradient(l.stops)}` }),
       el("div", { class: "ramp-labels" },
         el("span", { text: `−${sig(l.scale_max)} or less` }), el("span", { text: "0" }),
         el("span", { text: `+${sig(l.scale_max)} ${l.unit} or more` })),
+      fam ? el("div", { class: "ramp-labels" }, el("span", { text: lowEnd }), el("span", { text: highEnd })) : null,
       el("p", { text: `${l.period[0]}–${l.period[1]}. A trend unlikely to be chance covers ${fixed(l.percent_significant, 1)}% of `
         + `the mapped area: ${fixed(l.percent_rising, 1)}% rising, ${fixed(l.percent_falling, 1)}% falling. Faint cells could be chance.` }),
       el("p", { class: "fine", text: `${l.source}. Click a country for its trend.` })));
@@ -532,7 +542,8 @@ function showTerrain(data) {
     map.addSource("drainage", { type: "image", url: data.drainage.image, coordinates: data.drainage.coordinates });
     map.addLayer({ id: "drainage", type: "raster", source: "drainage",
       layout: { visibility: state.streams ? "visible" : "none" },
-      paint: { "raster-fade-duration": 0, "raster-resampling": "nearest", "raster-opacity": 0.9 } }, "borders");
+      paint: { "raster-fade-duration": 0, "raster-resampling": "nearest", "raster-opacity": 0.9 } },
+      ["borders", "country-hit", "storm-tracks"].find((id) => map.getLayer(id)));
   }
   const coordinates = drop && drop.path ? drop.path.geometry.coordinates : [];
   if (coordinates.length) map.getSource("raindrop").setData(drop.path);
@@ -639,7 +650,18 @@ async function select(lat, lon, name, { fly = true, tab = null } = {}) {
 
 /* ---------- map interaction ---------- */
 
+/** Rings spreading from where you clicked: the "you asked here" signal. */
+function ripple(point) {
+  if (REDUCED_MOTION) return;
+  for (const delay of [0, 220, 440]) {
+    const ring = el("span", { class: "ripple", style: `left:${point.x}px;top:${point.y}px;animation-delay:${delay}ms` });
+    map.getContainer().append(ring);
+    setTimeout(() => ring.remove(), 2200 + delay);
+  }
+}
+
 map.on("click", (e) => {
+  ripple(e.point);
   const hits = map.queryRenderedFeatures(e.point, { layers: ["events"] });
   if (hits.length) { showEventPopup(hits[0], e.lngLat); return; }
   // The trend view decides what a click means (a country, a box corner, or a place).

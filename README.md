@@ -2,9 +2,10 @@
 
 **Be an Earth trend detective.** Ask "Is [a variable] changing in [a region]?" and get a
 verdict in plain words: rising or falling, by how much per decade, and whether the change is
-significant or could be chance. Then see where it is changing on a map, compare two regions,
-and check the evidence. A live 3D globe with satellite layers, events, terrain and an AI
-detective sits one click behind.
+significant or could be chance. The globe shows where it is changing; click a country to ask
+about it, or any point to open that place: its vital signs, where its rain goes, the weather
+now, and a detective's case file. Satellite layers, live events, wind and 3D terrain are one
+click away in the layer list.
 
 Built for the 2026 NASA Space Apps Challenge,
 [Be An Earth System Trend Detective!](https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/)
@@ -32,12 +33,13 @@ Without a key, case files and the daily brief are written by fixed rules and lab
 .venv/bin/python -m pytest -m "not network"
 .venv/bin/python -m canary.cube                 # fetch the global grids now (otherwise on first use; about 1 GB)
 .venv/bin/python -m canary.globalmap            # recompute the trend maps for all 26 variables
-.venv/bin/python -m canary.snapshot OUT_DIR     # a static copy of the start page for any file host
+.venv/bin/python -m canary.snapshot OUT_DIR     # a static copy of Canary for any file host
 ```
 
 The snapshot needs no backend: every variable is precomputed for the whole world, the named
-regions, the continents and the countries over its full record (about 20 MB). Custom year
-ranges, drawn boxes and Explore mode need the running app.
+regions, the continents and the countries over its full record, with today's indicators,
+events and wind and four example places (about 21 MB). Custom years, boxes drawn on the globe,
+other places and NASA's satellite imagery need the running app.
 
 ## How it answers the challenge
 
@@ -54,15 +56,42 @@ ranges, drawn boxes and Explore mode need the running app.
 
 ## What you can do
 
-### Start page: investigate a trend
+### One workspace
 
-Pick a variable and a region in the sentence at the top (or click a country on the map). The page
-shows the verdict, the series, the trend map, the two significance tests, what might explain the
-change, and every other variable in that region ranked by how strongly it is trending. A strip at
-the bottom shows planet-wide indicators and live events. Everything below this point lives in
-**Explore the live globe**.
+The question sits in the header: a variable, a region, an optional second region to compare,
+and the years. The globe fills the screen and shows the variable's trend map. One panel on the
+right has three tabs:
 
-### Explore mode: the dashboard
+| Tab | What it shows |
+|---|---|
+| Trend | The verdict; the record (one cell per year, coloured by its difference from normal); rate of change, 95% range, total change and size against normal swings; an evidence bar and a range bar; the yearly chart or table; the two significance tests; what might explain it; every other variable in the region ranked |
+| Place | Any point you click or search for: vital signs, land and water, right now, and the detective |
+| Today | Planet indicators, the brief, and the biggest natural events now |
+
+Click a country on the globe to make it the region. In the Place tab a click opens that exact
+point instead. The Guide button explains the workspace, asks three questions to suggest a
+variable, and plays three one-minute walkthroughs on real data.
+
+### Colour (the Strata theme)
+
+Colour means one thing, everywhere. The full system, shown live on real data, is in
+`design/strata.html`.
+
+- **One object.** Every answer is drawn as a record: one cell per year, coloured by how far
+  that year sat from normal. It appears full size in the verdict, at row size in tables and in a
+  place's vital signs, and as a glyph in the variable picker.
+- **Three colour families.** Thermal (heat, snow and ice) runs blue to red, and red always
+  points the way a warming world pushes. Water runs brown (drier) to teal (wetter). Air runs violet
+  (more haze, cloud, ozone or pressure) to green (more sun and wind). Each has a grey middle, so
+  "no change" never looks like a result. The globe, the records and the numbers use the same family.
+- **Colour is earned.** A rate, a trend line or a map cell takes its colour only when the test
+  says it is unlikely to be chance; otherwise it stays grey, and lines are dashed and cells faint.
+- **Yellow means look here.** Canary yellow marks the region you chose, the place you clicked,
+  the finding in the headline and keyboard focus. It is never used for data.
+- **Light and dark.** The panel follows the system theme or the switch in the header; the globe
+  stays dark in both.
+
+### Today: the dashboard
 
 | Part | What it shows | Source |
 |---|---|---|
@@ -182,17 +211,21 @@ canary/
   detective.py          evidence tools, rule-based case files, number tracing
   llm.py                Claude investigator, skeptic, revision and daily brief
   api.py                FastAPI app, also serves web/
-  snapshot.py           static, backend-free copy of the start page
+  palette.py            the colour families and which way each variable points
+  snapshot.py           static, backend-free copy of Canary
 web/
-  start.js              the start page: question, verdict, cards, compare, guide, walkthroughs
-  app.js                Explore mode: map, layers, legends, place selection
+  start.js              the workspace: the question, the verdict, compare, guide, walkthroughs
+  app.js                the globe: map, layers, legends, place selection, the panel's tabs
   dashboard.js          the world dashboard and the case-file view
   dossier.js            vital signs, land and water, right now
   charts.js             SVG line charts with crosshair and tooltip
+  record.js             the record strip, evidence bar and range bar
+  ui.js                 searchable select, sortable table, view tabs, theme switch
   wind.js               wind particle animation
   preview.js            answers API calls from files in a snapshot build
   maps/                 precomputed trend and alarm maps
 tests/
+design/                 the Strata colour system: specimen page, its data and ramp generator
 reports/                research survey of data, tools and methods
 ```
 

@@ -18,7 +18,7 @@ from fastapi.staticfiles import StaticFiles
 
 import json
 
-from . import __version__, briefing, catalogue, cube, detective, investigate, llm, regions, terrain
+from . import __version__, briefing, catalogue, cube, detective, investigate, llm, palette, regions, terrain
 from .chart import place_chart
 from .sources import events, geos, gibs, indices
 from .sources.cache import cached_text
@@ -44,8 +44,10 @@ def variable_catalogue() -> dict:
     """Variables, themes, regions and the guide's questions."""
     return {
         "themes": [{"id": t[0], "name": t[1], "about": t[2]} for t in catalogue.THEMES],
+        "families": palette.FAMILIES,
         "variables": [{"id": v.id, "label": v.label, "unit": v.unit, "theme": v.theme, "definition": v.definition,
                        "source": v.source, "parameter": v.parameter, "ready": cube.ready(v.id),
+                       "family": v.family, "up": v.up,
                        "record_from": v.start_year or 1981} for v in catalogue.VARIABLES],
         "regions": regions.catalogue(),
         "interests": [{"id": k, "question": q} for k, (q, _) in catalogue.INTERESTS.items()],

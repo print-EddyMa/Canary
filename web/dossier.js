@@ -1,6 +1,7 @@
 /* The place dossier: what Canary knows about one point, in three tabs. */
 
 import { lineChart, outlookChart } from "./charts.js";
+import { claimColour, record } from "./record.js";
 import {
   el, sig, signed, fixed, signedFixed, pText, pEquals, together, thousands, compass, statusIcon, MINUS,
 } from "./util.js";
@@ -98,6 +99,14 @@ function reading(v) {
 
 const lagText = (months) => (months === 0 ? "same month" : `${months} month${months > 1 ? "s" : ""} later`);
 
+/** The place's record for this vital sign, from its first year with data. */
+function vitalRecord(v) {
+  const first = Math.max(0, v.annual_anomaly.findIndex((a) => a != null));
+  const years = v.years.slice(first), anomaly = v.annual_anomaly.slice(first);
+  return el("div", { class: "vital-record" }, record({ v, years, anomaly, size: "row" }),
+    el("span", { class: "vital-record-span", text: `${years[0]}–${years[years.length - 1]}` }));
+}
+
 function vitalCard(v) {
   const t = v.trend;
   const chipText = v.status === "stable"
@@ -108,11 +117,13 @@ function vitalCard(v) {
       el("h3", { class: "vital-title" }, v.label, " ", el("span", { class: "vital-unit", text: `(${v.unit})` })),
       el("span", { class: "chip" }, statusIcon(v.status), chipText)),
     el("p", { class: "vital-definition", text: v.definition }),
+    v.family ? vitalRecord(v) : null,
     lineChart({
       x: v.years,
       y: v.annual_anomaly,
       fit: [{ x: v.years[0], y: t.line[0] }, { x: v.years[v.years.length - 1], y: t.line[1] }],
       fitStrong: t.significant,
+      fitColour: claimColour(v, t.slope_per_decade, t.significant),
       zeroLine: true,
       label: `${v.label}, yearly difference from the 1991 to 2020 average, ${v.period[0]} to ${v.period[1]}`,
       rows: (i) => [

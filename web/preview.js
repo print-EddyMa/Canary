@@ -1,5 +1,5 @@
-/* Snapshot build: answers the start page's API calls from precomputed files, so the page
-   works with no backend. Written by `python -m canary.snapshot`; not loaded by the live app. */
+/* Snapshot build: answers the app's API calls from precomputed files, so it works with no
+   backend. Written by `python -m canary.snapshot`; not loaded by the live app. */
 (() => {
   const files = new Map();
   const file = (path) => {
@@ -11,68 +11,52 @@
     }
     return files.get(path);
   };
+  const LIVE_ONLY = "This snapshot has the four example places only. The running app reads any point on Earth.";
 
   async function getJSON(url) {
     const [path, query = ""] = url.split("?");
     const q = new URLSearchParams(query);
-    if (path === "/api/catalogue") return file("data/catalogue.json");
-    if (path === "/api/countries") return file("data/countries.json");
-    if (path === "/api/briefing") return file("data/briefing.json");
-    if (path === "/api/suggest") {
-      return (await file("data/suggest.json"))[`${q.get("interest") || ""}|${q.get("place") || ""}`] || [];
+    switch (path) {
+      case "/api/catalogue": return file("data/catalogue.json");
+      case "/api/countries": return file("data/countries.json");
+      case "/api/briefing": return file("data/briefing.json");
+      case "/api/events": return file("data/events.json");
+      case "/api/wind": return file("data/wind.json");
+      case "/api/layers": return []; // NASA imagery cannot load inside the snapshot
+      case "/api/search": throw new Error("Search needs the running app.");
+      case "/api/suggest":
+        return (await file("data/suggest.json"))[`${q.get("interest") || ""}|${q.get("place") || ""}`] || [];
+      case "/api/scan": {
+        const hit = (await file("data/scan.json"))[q.get("region")];
+        if (!hit) throw new Error("This snapshot has no scan for that region.");
+        return hit;
+      }
+      case "/api/investigate": {
+        const hit = (await file(`data/investigate/${q.get("variable")}.json`))[q.get("region")];
+        if (!hit) throw new Error("This snapshot covers the built-in regions only.");
+        if (hit.error) throw new Error(hit.error);
+        return hit;
+      }
+      case "/api/chart": case "/api/terrain": case "/api/now": case "/api/case": {
+        const key = `${Number(q.get("lat")).toFixed(2)},${Number(q.get("lon")).toFixed(2)}`;
+        const places = await file("data/places.json");
+        const hit = places[key] && places[key][path.slice(5)];
+        if (!hit) throw new Error(LIVE_ONLY);
+        return hit;
+      }
+      default: return file(url);
     }
-    if (path === "/api/scan") {
-      const hit = (await file("data/scan.json"))[q.get("region")];
-      if (!hit) throw new Error("This snapshot has no scan for that region.");
-      return hit;
-    }
-    if (path === "/api/investigate") {
-      const hit = (await file(`data/investigate/${q.get("variable")}.json`))[q.get("region")];
-      if (!hit) throw new Error("This snapshot covers the built-in regions only.");
-      if (hit.error) throw new Error(hit.error);
-      return hit;
-    }
-    return file(url);
   }
 
-  const make = (tag, attrs = {}, ...children) => {
-    const node = document.createElement(tag);
-    for (const [k, v] of Object.entries(attrs)) {
-      if (k === "text") node.textContent = v; else node.setAttribute(k, v);
-    }
-    node.append(...children);
-    return node;
-  };
-
-  /** Explore mode needs the live server, so the snapshot shows pictures of it instead. */
-  let gallery = null;
-  async function explore() {
-    if (!gallery) {
-      const shots = await file("shots/index.json").catch(() => []);
-      const close = make("button", { type: "button", class: "btn small", text: "Close" });
-      gallery = make("dialog", { class: "picker shots" },
-        make("div", { class: "dialog-head" }, make("h2", { text: "Explore the live globe" }), close),
-        make("div", { class: "dialog-body" },
-          make("p", { class: "steps-note",
-            text: "The globe streams NASA imagery, wind and events and computes each place on request, so it needs "
-              + "the running app. These are pictures of it." }),
-          ...shots.map((s) => make("figure", {},
-            make("img", { src: s.image, alt: s.title, loading: "lazy", width: s.width, height: s.height }),
-            make("figcaption", {}, make("strong", { text: s.title }), ` ${s.caption}`)))));
-      close.addEventListener("click", () => gallery.close());
-      gallery.addEventListener("click", (e) => { if (e.target === gallery) gallery.close(); });
-      document.getElementById("start").append(gallery);
-    }
-    gallery.showModal();
-  }
-
-  window.CANARY_PREVIEW = { getJSON, explore };
+  window.CANARY_PREVIEW = { getJSON };
 
   document.addEventListener("DOMContentLoaded", async () => {
     const meta = await file("data/snapshot.json").catch(() => null);
     if (!meta) return;
-    document.getElementById("start").prepend(make("p", { class: "preview-note",
-      text: `Snapshot of ${meta.date}. Every result is real and was computed for the full record of each variable. `
-        + "The running app also takes any range of years and any box drawn on the map, and opens the live globe." }));
+    const note = document.createElement("p");
+    note.className = "preview-note";
+    note.textContent = `Snapshot of ${meta.date}: every result is real, computed for each variable's full record. `
+      + "The running app also takes any years, boxes drawn on the globe, any place, and NASA's satellite imagery.";
+    document.getElementById("trend").prepend(note);
   });
 })();

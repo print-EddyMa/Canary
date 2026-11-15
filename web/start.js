@@ -4,6 +4,7 @@
 
 import "./app.js"; // the globe, its layers, the Place and Today panes
 import { compareChart, lineChart } from "./charts.js";
+import { claimColour, meters, record } from "./record.js";
 import { combobox, icon, initTheme, sortableTable, viewTabs } from "./ui.js";
 import { coordText, el, fixed, getJSON, sig, thousands } from "./util.js";
 
@@ -11,8 +12,9 @@ const canary = window.canary;
 const map = canary.map;
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 const FIRST_YEAR = 1981, LAST_YEAR = 2025, MIN_SPAN = 15;
-// The globe is dark in both themes, so outlines drawn on it use the dark-surface series colours.
-const SERIES = ["#3987e5", "#d95926"];
+// Outlines on the globe: the region you chose is Canary yellow ("look here"); a comparison
+// region is white and dashed, so the two differ by more than colour.
+const SERIES = ["#ffd21f", "#ecebe6"];
 // Snapshot build: results are precomputed for the full record and built-in regions only.
 const PREVIEW = Boolean(window.CANARY_PREVIEW);
 
@@ -61,11 +63,6 @@ function regionLabel(id) {
   return id;
 }
 const regionName = (id) => regionLabel(id).replace(/^The /, "the ").replace(/^Drawn box$/, "the drawn box");
-
-function sigTag(yes, short = false) {
-  return el("span", { class: `tag ${yes ? "is-yes" : "is-no"}` }, el("i"),
-    short ? (yes ? "Yes" : "No") : (yes ? "Significant" : "Not significant"));
-}
 
 /* ---------- URL ---------- */
 
@@ -141,19 +138,27 @@ function renderQuery() {
 
 /* ---------- verdict ---------- */
 
+/** The record of one investigation: one cell per year, coloured by its difference from normal. */
+function recordOf(r, size = "full") {
+  return record({
+    v: r.variable, years: r.years, size,
+    anomaly: r.values.map((x) => (x == null ? null : x - r.normal)),
+    trend: [r.trend.line[0] - r.normal, r.trend.line[1] - r.normal], strong: r.significant,
+    more: r.significant ? 0 : r.more_years_needed || 0,
+    label: `${r.variable.label} in ${nm(r)}: one cell per year from ${r.period[0]} to ${r.period[1]}, coloured by the difference from the 1991–2020 normal`,
+  });
+}
+
 function keyFigures(r) {
-  const v = r.variable, t = r.trend, d = digits(t.per_decade), mk = r.tests.mann_kendall;
-  const item = (label, value, note, extra) => el("div", {}, el("dt", { text: label }),
-    el("dd", { class: "value", text: value }), note ? el("dd", { class: "note", text: note }) : null,
-    extra ? el("dd", {}, extra) : null);
+  const v = r.variable, t = r.trend, d = digits(t.per_decade);
+  const item = (label, value, note, colour) => el("div", {}, el("dt", { text: label }),
+    el("dd", { class: "value", style: colour ? `color:${colour}` : null, text: value }), el("dd", { class: "note", text: note }));
   return el("dl", { class: "keyfigures" },
-    item("Rate of change", signedFix(t.per_decade, d), `${v.unit} per decade`),
+    item("Rate of change", signedFix(t.per_decade, d), `${v.unit} per decade`, claimColour(v, t.per_decade, r.significant)),
     item("95% range", `${signedFix(t.range_per_decade[0], d)} to ${signedFix(t.range_per_decade[1], d)}`, "likely range of the true rate"),
     item(`Total, ${r.period[0]}–${r.period[1]}`, signedFix(t.total_change, digits(t.total_change)),
-      t.percent_change == null ? v.unit : `${v.unit} (${signedFix(t.percent_change, 0)}%)`),
-    item("Against normal swings", t.signal_to_noise == null ? "n/a" : `${t.signal_to_noise.toFixed(1)}×`,
-      "the usual year-to-year swing"),
-    item("Significance", pEq(mk.p), `Mann-Kendall, ${r.tests.years} years`, sigTag(r.significant)));
+      t.percent_change == null ? v.unit : `${v.unit} (${signedFix(t.percent_change, 0)}%)`, claimColour(v, t.total_change, r.significant)),
+    item("Against normal swings", t.signal_to_noise == null ? "n/a" : `${t.signal_to_noise.toFixed(1)}×`, "the usual year-to-year swing"));
 }
 
 function verdictBlock(r, key) {
@@ -167,8 +172,13 @@ function verdictBlock(r, key) {
     key ? el("p", { class: "verdict-region" }, el("i", { class: `key series-${key === "a" ? 1 : 2}` }), r.region.name)
       : el("p", { class: "question", text: `Is ${v.label.toLowerCase()} changing in ${nm(r)}?` }),
     el(key ? "h2" : "h1", { class: "verdict-headline" }, ...title),
-    el("p", { class: "verdict-detail", text: detail }),
-    keyFigures(r));
+    el("div", { class: "record-wrap" }, recordOf(r),
+      el("p", { class: "record-note", text: `One cell per year: its difference from the 1991–2020 normal. `
+        + `Line: the trend${r.significant ? "" : ", dashed because it could be chance"}.`
+        + (!r.significant && r.more_years_needed ? ` Dashed cells: about ${r.more_years_needed} more year${r.more_years_needed > 1 ? "s" : ""} of data would settle it.` : "") })),
+    keyFigures(r),
+    meters(v, { p: r.tests.mann_kendall.p, significant: r.significant, rate: r.trend.per_decade, range: r.trend.range_per_decade }),
+    el("p", { class: "verdict-detail", text: detail }));
 }
 
 function comparisonLine(a, b) {
@@ -210,7 +220,7 @@ function seriesChart(a, b) {
       lineChart({
         x: a.years, y: a.values, width: 440, height: 250,
         fit: [{ x: a.period[0], y: a.trend.line[0] }, { x: a.period[1], y: a.trend.line[1] }],
-        fitStrong: a.significant,
+        fitStrong: a.significant, fitColour: claimColour(v, a.trend.per_decade, a.significant),
         label: `${v.label} in ${nm(a)}, yearly averages ${a.period[0]} to ${a.period[1]}, with trend line`,
         rows: (i) => [String(a.years[i]), `${fixed(a.values[i], v.decimals)} ${v.unit}`,
           `${signedFix(a.values[i] - a.normal, v.decimals)} against the 1991–2020 average`],
@@ -386,16 +396,19 @@ async function renderScan(id) {
       { key: "label", label: "Variable", sort: (r) => r.label,
         cell: (r) => el("button", { type: "button", class: "link", text: r.label,
           onclick: () => { state.variable = r.id; frameNext = false; update(); $("panel").scrollTo({ top: 0, behavior: REDUCED_MOTION ? "auto" : "smooth" }); } }) },
-      { key: "change", label: "Per decade", numeric: true,
-        cell: (r) => [signedFix(r.per_decade, digits(r.per_decade)), " ", el("span", { class: "unit", text: r.unit })] },
-      { key: "swing", label: "× swing", numeric: true, sort: (r) => r.signal_to_noise || 0,
-        cell: (r) => (r.signal_to_noise || 0).toFixed(1) },
-      { key: "verdict", label: "Significant", sort: (r) => (r.significant ? 0 : 1), cell: (r) => sigTag(r.significant, true) },
+      { key: "record", label: "Record",
+        cell: (r) => record({ v: r, years: r.years, size: "row", anomaly: r.values.map((x) => (x == null ? null : x - r.normal)),
+          label: `${r.label}: one cell per year` }) },
+      { key: "change", label: "Per decade", numeric: true, sort: (r) => (r.significant ? 1 : 0) * 1e3 + (r.signal_to_noise || 0),
+        cell: (r) => [el("span", { class: `tag ${r.significant ? "is-yes" : "is-no"}`, title: r.significant ? "Significant" : "Not significant" },
+          el("i"), el("span", { class: "visually-hidden", text: r.significant ? "Significant: " : "Not significant: " })), " ",
+          el("span", { class: r.significant ? "earned" : "", style: `color:${claimColour(r, r.per_decade, r.significant)}`,
+            text: signedFix(r.per_decade, digits(r.per_decade)) }), " ", el("span", { class: "unit", text: r.unit })] },
     ],
   });
   box.replaceChildren(
     el("p", { class: "note-text", text: "Testing many variables at once invites flukes, so these verdicts use a stricter test "
-      + "(false-discovery control) than a single investigation. “× swing” is the total change against the usual year-to-year swing."
+      + "(false-discovery control) than a single investigation. A filled dot and colour mark the changes that pass it."
       + (data.still_loading.length ? ` ${data.still_loading.length} more are still being fetched from NASA.` : "") }),
     el("div", { class: "table-wrap" }, table));
 }
@@ -420,7 +433,7 @@ function attachMap() {
   line("sel-b-case", "countries", NO_COUNTRY, casing, 5);
   line("shapes-case", "shapes", null, casing, 5);
   line("sel-a", "countries", NO_COUNTRY, SERIES[0], 2.5);
-  line("sel-b", "countries", NO_COUNTRY, SERIES[1], 2.5);
+  line("sel-b", "countries", NO_COUNTRY, SERIES[1], 2.5, { "line-dasharray": [2, 1.5] });
   line("shapes", "shapes", null, ["match", ["get", "key"], "b", SERIES[1], "draw", "#ffffff", SERIES[0]], 2.5);
 
   const tip = new maplibregl.Popup({ closeButton: false, closeOnClick: false, offset: 10, className: "country-tip" });
@@ -511,6 +524,16 @@ function showRegionsOnMap(a, b, frame) {
   for (const [r, key] of [[a, "a"], [b, "b"]]) {
     if (r && (r.region.kind === "preset" || r.region.kind === "box")) {
       const [s, w, n, e] = r.region.bounds;
+      if (e - w >= 359) {
+        // A band around the whole globe (the Arctic, the tropics): draw its edges as parallels only.
+        for (const lat of [s, n]) {
+          if (Math.abs(lat) >= 85) continue;
+          const circle = [];
+          for (let x = -180; x <= 180; x += 5) circle.push([x, lat]);
+          regionShapes.push({ type: "Feature", properties: { key }, geometry: { type: "LineString", coordinates: circle } });
+        }
+        continue;
+      }
       // Step along each edge so that it follows a parallel on the globe instead of cutting a great circle.
       const ring = [];
       const east = e < w ? e + 360 : e;
@@ -674,6 +697,7 @@ async function update() {
   if (state.end - state.start + 1 < MIN_SPAN) state.end = Math.min(LAST_YEAR, state.start + MIN_SPAN - 1);
   if (state.compare === state.region) state.compare = null;
   renderQuery();
+  if (results.a && results.a.variable.id !== state.variable) $("pick-variable").querySelector(".record-glyph")?.remove();
   writeHash();
   if (canary.state.trendId !== state.variable) canary.setTrend(state.variable, { keepSpin: true });
   const box = document.querySelector(".results");
@@ -695,6 +719,9 @@ async function update() {
   if (id !== requestId) return;
   results = { a, b };
   box.classList.remove("loading", "has-error");
+  const trigger = $("pick-variable");
+  trigger.querySelector(".record-glyph")?.remove();
+  trigger.insertBefore(recordOf(a, "glyph"), trigger.querySelector(".combo-value"));
   $("verdict").replaceChildren(...(b ? [verdictBlock(a, "a"), verdictBlock(b, "b"), comparisonLine(a, b)] : [verdictBlock(a)]));
   pointNote(a);
   renderSeries(a, b);

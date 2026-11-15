@@ -1,12 +1,12 @@
-"""A static snapshot of the start page: every answer precomputed, no backend needed.
+"""A static snapshot of Canary: every answer precomputed, no backend needed.
 
-    python -m canary.snapshot OUT_DIR [--shots DIR]
+    python -m canary.snapshot OUT_DIR [--pages-only]
 
 Writes OUT_DIR/index.html (for any static host) and OUT_DIR/page.html (the same page as a
 body fragment with its styles inline, for hosts that wrap pages themselves), the scripts,
-the trend maps, and data/ with one analysis per variable and built-in region over the full
-record. Custom year ranges, drawn boxes and Explore mode need the running app; with --shots,
-JPEG pictures of Explore mode listed in DIR/index.json are shown in their place.
+the trend maps, and data/: one analysis per variable and built-in region over the full
+record, today's indicators, events and wind, and four example places. Custom years, boxes
+drawn on the globe, other places and NASA's satellite imagery need the running app.
 """
 
 from __future__ import annotations
@@ -21,23 +21,15 @@ from pathlib import Path
 import httpx
 import numpy as np
 
-from . import briefing, catalogue, cube, investigate, regions
+from . import catalogue, cube, investigate, regions
 
 WEB = Path(__file__).resolve().parent.parent / "web"
-MAPLIBRE_CSS = "https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.css"
-SCRIPTS = ("start.js", "charts.js", "util.js", "preview.js")
-
-# The live page is one fixed, scrolling pane beside Explore mode; alone it can scroll normally.
-EXTRA_CSS = """
-html, body { height: auto; overflow: visible; }
-.start { position: static; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
-@media (min-width: 700px) { .start { padding-left: clamp(16px, 4vw, 48px); padding-right: clamp(16px, 4vw, 48px); } }
-.preview-note { margin: -14px auto 22px; padding: 8px 12px; font-size: 13px; color: var(--text-2); background: var(--surface); border: 1px solid var(--border); border-radius: 10px; }
-.shots figure { margin: 0 0 18px; }
-.shots img { display: block; width: 100%; height: auto; border: 1px solid var(--border); border-radius: 10px; }
-.shots figcaption { margin-top: 6px; font-size: 13.5px; color: var(--text-2); }
-.shots figcaption strong { color: var(--text); }
-"""
+MAPLIBRE = "https://unpkg.com/maplibre-gl@5.6.0/dist"
+SCRIPTS = ("start.js", "app.js", "charts.js", "util.js", "ui.js", "record.js", "dossier.js", "dashboard.js",
+           "wind.js", "preview.js")
+# The example places offered in the Place pane (web/app.js DEMOS).
+PLACES = [(78.2, 15.6, "Svalbard, Arctic Norway"), (0.0, -150.0, "Equatorial Pacific"),
+          (39.74, -104.99, "Denver, Colorado"), (-1.28, 36.82, "Nairobi, Kenya")]
 
 
 def _dump(path: Path, value) -> None:
@@ -51,11 +43,25 @@ def region_ids() -> list[str]:
 
 
 def write_data(out: Path) -> None:
-    from .api import variable_catalogue  # the same catalogue the live page receives
+    from fastapi.testclient import TestClient
+
+    from .api import app
 
     ids = region_ids()
-    _dump(out / "data/catalogue.json", variable_catalogue())
-    _dump(out / "data/countries.json", regions.countries_geojson())
+    with TestClient(app) as client:
+        get = lambda url: client.get(url).raise_for_status().json()  # noqa: E731
+        for name, url in [("catalogue", "/api/catalogue"), ("countries", "/api/countries"),
+                          ("briefing", "/api/briefing?ai=false"), ("events", "/api/events"), ("wind", "/api/wind")]:
+            _dump(out / f"data/{name}.json", get(url))
+        places = {}
+        for lat, lon, name in PLACES:
+            q = f"lat={lat:.3f}&lon={lon:.3f}"
+            places[f"{lat:.2f},{lon:.2f}"] = {
+                "chart": get(f"/api/chart?{q}"), "terrain": get(f"/api/terrain?{q}"),
+                "now": get(f"/api/now?{q}"), "case": get(f"/api/case?lat={lat:.2f}&lon={lon:.2f}&author=rules"),
+            }
+            print(f"  place: {name}", flush=True)
+        _dump(out / "data/places.json", places)
     _dump(out / "data/snapshot.json", {"date": dt.date.today().strftime("%-d %B %Y"), "regions": len(ids)})
 
     per_region: dict[str, list[dict]] = {r: [] for r in ids}
@@ -75,41 +81,35 @@ def write_data(out: Path) -> None:
     _dump(out / "data/suggest.json", {
         f"{interest or ''}|{place or ''}": investigate.suggest(interest, place)
         for interest in [None, *catalogue.INTERESTS] for place in [None, *catalogue.PLACE_KINDS]})
-    today = briefing.briefing()
-    today["ai_available"] = False
-    _dump(out / "data/briefing.json", today)
 
 
-def write_pages(out: Path, shots: Path | None) -> None:
+def write_pages(out: Path) -> None:
     for name in SCRIPTS:
         shutil.copy(WEB / name, out / name)
     shutil.copytree(WEB / "maps", out / "maps", dirs_exist_ok=True)
-    if shots:
-        shutil.copytree(shots, out / "shots", dirs_exist_ok=True)
-    else:
-        _dump(out / "shots/index.json", [])
 
     html = (WEB / "index.html").read_text()
-    main = re.search(r"<main id=\"start\".*?</main>", html, re.S).group(0)
-    title = "Canary trend detective"
-    css = (WEB / "style.css").read_text() + EXTRA_CSS
-    maplibre_css = httpx.get(MAPLIBRE_CSS, follow_redirects=True, timeout=60).raise_for_status().text
+    body = re.search(r"<body>(.*)</body>", html, re.S).group(1)
+    body = re.sub(r"\s*<script[^>]*>.*?</script>", "", body, flags=re.S)
+    fonts = re.search(r'<link rel="stylesheet" href="(https://fonts\.googleapis\.com[^"]+)">', html).group(1)
+    maplibre_css = httpx.get(f"{MAPLIBRE}/maplibre-gl.css", follow_redirects=True, timeout=60).raise_for_status().text
     assert "url(" not in maplibre_css.replace("url(\"data:", "").replace("url(data:", ""), "MapLibre CSS links out"
-    scripts = ('<script src="https://unpkg.com/maplibre-gl@5.6.0/dist/maplibre-gl.js"></script>\n'
+    css = (WEB / "style.css").read_text()
+    scripts = (f'<script src="{MAPLIBRE}/maplibre-gl.js"></script>\n'
                '<script src="preview.js"></script>\n<script type="module" src="start.js"></script>')
-    fragment = (f"<title>{title}</title>\n<meta name=\"claude:viewport-fit-sides\" content=\"cover\">\n"
-                f"<style>{maplibre_css}</style>\n<style>{css}</style>\n{main}\n{scripts}\n")
+    fragment = ("<title>Canary</title>\n<meta name=\"claude:viewport-fit-sides\" content=\"cover\">\n"
+                f'<link rel="stylesheet" href="{fonts}">\n'
+                f"<style>{maplibre_css}</style>\n<style>{css}</style>\n{body.strip()}\n{scripts}\n")
     (out / "page.html").write_text(fragment)
     (out / "index.html").write_text(
         "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
-        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1\">\n"
+        "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n"
         f"</head>\n<body>\n{fragment}</body>\n</html>\n")
 
 
 def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("out", type=Path)
-    parser.add_argument("--shots", type=Path, help="folder of Explore-mode pictures with an index.json")
     parser.add_argument("--pages-only", action="store_true", help="rebuild the pages, keep existing data")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
@@ -118,7 +118,7 @@ def main() -> None:
         if missing:
             raise SystemExit(f"Global grids not fetched yet ({', '.join(missing)}). Run: python -m canary.cube")
         write_data(args.out)
-    write_pages(args.out, args.shots)
+    write_pages(args.out)
     size = sum(f.stat().st_size for f in args.out.rglob("*") if f.is_file())
     print(f"Snapshot in {args.out}: {size / 1e6:.1f} MB")
 

@@ -111,7 +111,7 @@ export class WindLayer {
       const speed = Math.hypot(wind[0], wind[1]);
       buckets[speed < 5 ? 0 : speed < 12 ? 1 : 2].push(p.x, p.y, q.x, q.y);
     }
-    const styles = ["rgba(240,239,236,0.35)", "rgba(240,239,236,0.65)", "rgba(255,240,184,0.95)"];
+    const styles = ["rgba(240,239,236,0.35)", "rgba(240,239,236,0.65)", "rgba(255,255,255,0.95)"];
     buckets.forEach((segments, k) => {
       if (!segments.length) return;
       ctx.strokeStyle = styles[k];
