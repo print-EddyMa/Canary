@@ -1,6 +1,6 @@
 # The 30-second demo
 
-`docs/demo.mp4` is the real app, recorded frame by frame. Nothing in it is mocked up or generated.
+The demo ([on YouTube](https://youtu.be/-gIIqQxkt-o); the source file is `docs/demo.mp4`) is the real app, recorded frame by frame. Nothing in it is mocked up or generated.
 
 1. `capture.js` drives Canary in headless Chromium (Playwright) on a virtual clock (`clock.js`).
    Each frame, `performance.now`, `Date.now`, `requestAnimationFrame` and CSS animations advance

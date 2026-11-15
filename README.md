@@ -7,7 +7,7 @@
 
 <p align="center">
   <a href="https://print-eddyma.github.io/Canary/"><b>▶ Try Canary live</b></a> &nbsp;·&nbsp;
-  <a href="docs/demo.mp4"><b>Watch the 30-second demo</b></a>
+  <a href="https://youtu.be/-gIIqQxkt-o"><b>Watch the 30-second demo</b></a>
 </p>
 
 <p align="center">
@@ -26,7 +26,7 @@
 </p>
 <p align="center"><sub>
   <a href="https://power.larc.nasa.gov/">NASA POWER</a> ·
-  <a href="https://gmao.gsfc.nasa.gov/GEOS_systems/">NASA GEOS-FP</a> ·
+  <a href="https://gmao.gsfc.nasa.gov/gmao-products/geos-fp/">NASA GEOS-FP</a> ·
   <a href="https://nasa-gibs.github.io/gibs-api-docs/">NASA GIBS</a> ·
   <a href="https://eonet.gsfc.nasa.gov/">NASA EONET</a> ·
   <a href="https://carbonmapper.org/">Carbon Mapper</a> ·
@@ -41,8 +41,8 @@
 <p align="center"><sub>Weather mode: the last 24 hours of NASA GEOS-FP clouds and 10 m wind, drawn on the GPU, while live alerts (GDACS, USGS, NWS, Carbon Mapper, EONET) arrive in the panel.</sub></p>
 
 <p align="center">
-  <a href="docs/demo.mp4"><img src="docs/demo-poster.jpg" alt="Watch the 30-second demo" width="720"></a><br>
-  <a href="docs/demo.mp4"><b>▶ Watch the 30-second demo</b></a>
+  <a href="https://youtu.be/-gIIqQxkt-o"><img src="docs/youtube-thumbnail.jpg" alt="Watch the 30-second demo on YouTube" width="720"></a><br>
+  <a href="https://youtu.be/-gIIqQxkt-o"><b>▶ Watch the 30-second demo on YouTube</b></a>
 </p>
 
 **Be an Earth trend detective.** Ask "Is [a variable] changing in [a region]?" and get a
@@ -83,8 +83,8 @@ Without a key, case files and the daily brief are written by fixed rules and lab
 
 The snapshot needs no backend: every variable is precomputed for the whole world, the named
 regions, the continents and the countries over its full record, with today's indicators,
-events and wind and four example places (about 21 MB). Custom years, boxes drawn on the globe,
-other places and NASA's satellite imagery need the running app.
+events, weather, alerts and four example places (about 70 MB). Custom years, boxes drawn on the
+globe and other places need the running app. Add `--web` for a public host (below).
 
 ### The live site
 
@@ -111,9 +111,9 @@ Then push the contents of `site/` to the `gh-pages` branch.
 
 | The challenge asks for | Where it is in Canary |
 |---|---|
-| Identify variables of interest | A picker of 26 variables in five themes, each with a plain definition; a three-question guide that suggests where to start; a scan that tests every variable in a region and ranks the ones that are trending |
+| Identify variables of interest | A picker of 26 variables in five themes, each with a plain definition; a search over every variable, region and place; a scan that tests every variable in a region and ranks the ones that are trending |
 | Acquire the data for a region | The whole world, 13 named regions, 7 continents, 177 countries, or a box drawn on the map; area-weighted averages from NASA POWER global grids (MERRA-2 and CERES) |
-| Visualise the time series | Yearly series with the trend line, hover readout, data table and CSV download; two regions on one chart |
+| Visualise the time series | Yearly anomaly bars against the 1991–2020 normal, a latitude–time diagram, decade-by-decade distributions, hover readout, data table and CSV download; two regions on one chart; the trend map of every grid cell, flat or in 3D |
 | Rate of change and significance | Theil-Sen slope with a 95% range; Mann-Kendall test and a t-test on the least-squares slope, both corrected for memory in the data; the size of the change against normal year-to-year swings |
 | What is changing, where, how much, significant? | One verdict sentence, a trend map of every grid cell (bright where significant), and the share of the region rising and falling |
 | "Opposite trends from the same process" | Compare mode: for example, haze rising over India and falling over Japan |
@@ -195,7 +195,7 @@ tests sit behind the ⓘ button and the folds below the chart.
 `⌘K` or `Ctrl K` (or `/`) opens a command palette over every variable, region and country, any
 place on Earth (geocoded), the three views, and actions: compare, cite, copy a link, download
 the data, switch theme, play a walkthrough. `1`, `2` and `3` switch the view; `?` lists the
-shortcuts.
+shortcuts; `D` stands the trend map up in 3D.
 
 ### Cite and reproduce
 
@@ -213,11 +213,11 @@ right has three tabs:
 |---|---|
 | Trend | The verdict; the record (one cell per year, coloured by its difference from normal); rate of change, 95% range, total change and size against normal swings; an evidence bar and a range bar; the yearly chart or table; the two significance tests; what might explain it; every other variable in the region ranked |
 | Place | Any point you click or search for: vital signs, land and water, right now, and the detective |
-| Today | Planet indicators, the brief, and the biggest natural events now |
+| Live | Disasters, earthquakes, severe-weather warnings and methane plumes as they are reported; folded below, planet indicators, the brief and the biggest natural events now |
 
 Click a country on the globe to make it the region. In the Place tab a click opens that exact
-point instead. The Guide button explains the workspace, asks three questions to suggest a
-variable, and plays three one-minute walkthroughs on real data.
+point instead. The Guide button explains the workspace and plays three one-minute walkthroughs
+on real data.
 
 ### Colour (the Strata theme)
 
@@ -231,14 +231,14 @@ Colour means one thing, everywhere. The full system, shown live on real data, is
   points the way a warming world pushes. Water runs brown (drier) to teal (wetter). Air runs violet
   (more haze, cloud, ozone or pressure) to green (more sun and wind). Each has a grey middle, so
   "no change" never looks like a result. The globe, the records and the numbers use the same family.
-- **Colour is earned.** A rate, a trend line or a map cell takes its colour only when the test
+- **Colour is earned.** A rate, a chart or a map cell takes its colour only when the test
   says it is unlikely to be chance; otherwise it stays grey, and lines are dashed and cells faint.
 - **Yellow means look here.** Canary yellow marks the region you chose, the place you clicked,
   the finding in the headline and keyboard focus. It is never used for data.
 - **Light and dark.** The panel follows the system theme or the switch in the header; the globe
   stays dark in both.
 
-### Today: the dashboard
+### The planet today (in the Live tab)
 
 | Part | What it shows | Source |
 |---|---|---|
@@ -275,7 +275,7 @@ Colour means one thing, everywhere. The full system, shown live on real data, is
 ### The detective and the skeptic
 
 Three roles in three separate conversations, so that no role marks its own work
-(`canary/llm.py`, model `claude-opus-5-5`):
+(`canary/llm.py`; the model is set by `CANARY_MODEL`):
 
 1. **Investigator.** Given a place and nine tools (vital signs, climate links, stability check,
    outlook, terrain and water, current conditions, nearby events, planet context, and a
@@ -342,6 +342,7 @@ canary/
   sources/geos.py       live wind, temperature and pressure from NASA GEOS-FP
   sources/weather.py    the last 24 hours of GEOS-FP clouds, rain, temperature and wind
   sources/events.py     NASA EONET events and USGS earthquakes
+  sources/alerts.py     live alerts: GDACS, USGS, NWS, EONET, Carbon Mapper methane plumes
   stats/trend.py        anomalies, Mann-Kendall, Theil-Sen, least squares, FDR
   stats/ews.py          critical-slowing-down indicators and surrogates
   stats/teleconnect.py  lagged links to climate modes
@@ -369,12 +370,17 @@ web/
   charts.js             SVG line charts with crosshair and tooltip
   record.js             the record strip, evidence bar and range bar
   fields.js             WebGL2 renderer for the trend maps and the weather
+  columns.js            the trend map as 3D columns
+  science.js            anomaly bars, latitude–time diagram, decade distributions, forest plot
+  live.js               the Live tab: alert feed, globe markers, plume imagery
   command.js            the command palette
   ui.js                 searchable select, sortable table, view tabs, theme switch
   wind.js               wind particle animation
-  preview.js            answers API calls from files in a snapshot build
+  preview.js            answers API calls in a static build; live feeds in the web build
   maps/                 precomputed trend grids (.bin) and the alarm map
 tests/
+demo/                   scripts that recorded and rendered the demo video
+docs/                   logo, screenshots, YouTube thumbnail, demo video
 design/                 the Strata colour system: specimen page, its data and ramp generator
 reports/                research survey of data, tools and methods
 ```
@@ -391,7 +397,9 @@ reports/                research survey of data, tools and methods
 
 ## Data credits
 
-NASA POWER (NASA Langley), NASA GIBS (ESDIS), NASA GEOS-FP (GMAO), NASA EONET, NASA GISTEMP, USGS Earthquake
-Hazards Program, NOAA PSL, CPC and NCEI climate indices, NOAA GML carbon dioxide, NSIDC Sea Ice Index, Terrain Tiles on AWS (NASA SRTM, GMTED2010,
-ETOPO1 and national surveys), Natural Earth rivers and coastlines, Open-Meteo geocoding (GeoNames),
-OpenStreetMap contributors (map labels).
+NASA POWER (NASA Langley; MERRA-2 from GMAO, CERES SYN1deg), NASA GIBS (ESDIS), NASA GEOS-FP (GMAO),
+NASA EONET, NASA GISTEMP; NOAA GOES-East and GOES-West and JMA Himawari imagery via NASA GIBS;
+Carbon Mapper methane plumes; GDACS (UN and European Commission); USGS Earthquake Hazards Program;
+US National Weather Service; NOAA PSL, CPC and NCEI climate indices; NOAA GML carbon dioxide; NSIDC
+Sea Ice Index; Terrain Tiles on AWS (NASA SRTM, GMTED2010, ETOPO1 and national surveys); Natural
+Earth rivers and coastlines; Open-Meteo geocoding (GeoNames); OpenStreetMap contributors (map labels).
