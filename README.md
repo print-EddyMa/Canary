@@ -35,6 +35,11 @@
 </p>
 <p align="center"><sub>Weather mode: the last 24 hours of NASA GEOS-FP clouds and 10 m wind, drawn on the GPU, while live alerts (GDACS, USGS, NWS, Carbon Mapper, EONET) arrive in the panel.</sub></p>
 
+<p align="center">
+  <a href="docs/demo.mp4"><img src="docs/demo-poster.jpg" alt="Watch the 30-second demo" width="720"></a><br>
+  <a href="docs/demo.mp4"><b>▶ Watch the 30-second demo</b></a>
+</p>
+
 **Be an Earth trend detective.** Ask "Is [a variable] changing in [a region]?" and get a
 verdict in plain words: rising or falling, by how much per decade, and whether the change is
 significant or could be chance. The globe shows where it is changing; click a country to ask
