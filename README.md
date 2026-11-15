@@ -6,6 +6,31 @@
 </p>
 
 <p align="center">
+  <a href="https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/"><img alt="NASA Space Apps Challenge 2026" src="https://img.shields.io/badge/NASA_Space_Apps-2026-0b3d91?style=for-the-badge"></a>
+  <a href="https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/"><img alt="Challenge: Earth System Trend Detective" src="https://img.shields.io/badge/Challenge-Earth_System_Trend_Detective-fc3d21?style=for-the-badge"></a>
+  <a href="#data-credits"><img alt="Data: NASA POWER, GEOS-FP, GIBS, EONET" src="https://img.shields.io/badge/Data-NASA_POWER_·_GEOS--FP_·_GIBS_·_EONET-ffd21f?style=for-the-badge&labelColor=14181f"></a>
+</p>
+<p align="center">
+  <img alt="Python 3.11+" src="https://img.shields.io/badge/Python-3.11+-3776ab?logo=python&logoColor=white">
+  <img alt="FastAPI" src="https://img.shields.io/badge/FastAPI-009688?logo=fastapi&logoColor=white">
+  <img alt="NumPy" src="https://img.shields.io/badge/NumPy-013243?logo=numpy&logoColor=white">
+  <img alt="SciPy" src="https://img.shields.io/badge/SciPy-8caae6?logo=scipy&logoColor=white">
+  <img alt="MapLibre GL 5.6" src="https://img.shields.io/badge/MapLibre_GL-5.6-396cb2?logo=maplibre&logoColor=white">
+  <img alt="WebGL2" src="https://img.shields.io/badge/WebGL2-shaders-990000?logo=webgl&logoColor=white">
+  <img alt="No build step" src="https://img.shields.io/badge/front_end-no_build_step-f7df1e?logo=javascript&logoColor=black">
+</p>
+<p align="center"><sub>
+  <a href="https://power.larc.nasa.gov/">NASA POWER</a> ·
+  <a href="https://gmao.gsfc.nasa.gov/GEOS_systems/">NASA GEOS-FP</a> ·
+  <a href="https://nasa-gibs.github.io/gibs-api-docs/">NASA GIBS</a> ·
+  <a href="https://eonet.gsfc.nasa.gov/">NASA EONET</a> ·
+  <a href="https://carbonmapper.org/">Carbon Mapper</a> ·
+  <a href="https://www.gdacs.org/">GDACS</a> ·
+  <a href="https://earthquake.usgs.gov/">USGS</a> ·
+  <a href="https://www.weather.gov/">NOAA NWS</a>
+</sub></p>
+
+<p align="center">
   <img src="docs/hero.jpg" alt="Canary: the last 24 hours of NASA GEOS-FP clouds and wind on the globe, with live disaster, weather-warning and methane alerts building in the side panel" width="100%">
 </p>
 <p align="center"><sub>Weather mode: the last 24 hours of NASA GEOS-FP clouds and 10 m wind, drawn on the GPU, while live alerts (GDACS, USGS, NWS, Carbon Mapper, EONET) arrive in the panel.</sub></p>
