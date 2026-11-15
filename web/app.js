@@ -3,6 +3,7 @@
 import { caseView, renderDashboard } from "./dashboard.js";
 import { conditionCard, nowTab, silence, terrainTab, vitalsTab } from "./dossier.js";
 import { coordText, el, fixed, getJSON, kmBetween, sig, thousands } from "./util.js";
+import { TrendColumns } from "./columns.js";
 import { TrendField, WeatherField } from "./fields.js";
 import { WindLayer } from "./wind.js";
 
@@ -186,9 +187,10 @@ function applyOverlay() {
   const o = state.overlay;
   if (o && o.type === "trend" && trendField) {
     const layer = maps.layers.find((l) => l.id === o.id);
-    trendField.show(layer, state.opacity).catch((error) => console.warn(error.message));
+    trendField.show(layer, state.opacity).then(syncColumns).catch((error) => console.warn(error.message));
   } else if (trendField) {
     trendField.hide();
+    syncColumns();
   }
   if (o && o.type !== "trend") {
     if (o.type === "gibs") {
@@ -941,8 +943,30 @@ function setMode(mode, { keepSpin = false } = {}) {
   }
   applyToggles();
   renderDock();
+  syncColumns();
 }
 let lastWind = null;
+
+/* ---------- 3D trend columns ---------- */
+
+const columns = new TrendColumns(map);
+const button3d = document.getElementById("toggle-3d");
+
+function syncColumns() {
+  const showing = state.mode === "trends" && trendField && trendField.layer;
+  columns.sync(showing ? trendField.layer : null, showing ? trendField.grid : null, UNDER.find((id) => map.getLayer(id)));
+  if (button3d) button3d.hidden = state.mode !== "trends";
+}
+
+function set3d(on) {
+  columns.on = on;
+  button3d.setAttribute("aria-pressed", String(on));
+  syncColumns();
+  spinning = false;
+  // Tilt the camera so the columns stand up; level it again when they are put away.
+  map.easeTo(on ? { pitch: 38, duration: 1100 } : { pitch: 0, bearing: 0, duration: 800 });
+}
+if (button3d) button3d.addEventListener("click", () => set3d(!columns.on));
 
 /* ---------- world dashboard ---------- */
 
@@ -1082,4 +1106,4 @@ map.on("load", async () => {
 
 // For tests and the console.
 window.canary = { map, state, select, setOverlay, setTrend, setTab, showPane, setMode, wind, thousands, ready, onMapClick: null,
-  stopSpin: () => { spinning = false; }, fields: () => ({ trendField, weatherField }) };
+  stopSpin: () => { spinning = false; }, fields: () => ({ trendField, weatherField }), set3d };

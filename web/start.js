@@ -5,7 +5,7 @@
 import "./app.js"; // the globe, its layers, the Place and Today panes
 import { compareChart, lineChart } from "./charts.js";
 import { claimColour, evidenceBar, rangeBar, record } from "./record.js";
-import { anomalyChart, forestPlot, shiftChart } from "./science.js";
+import { anomalyChart, decadeRidges, forestPlot, latitudeTime } from "./science.js";
 import { addGroup, bindKeys, open as openPalette } from "./command.js";
 import { initLive } from "./live.js";
 import { combobox, copyText, icon, initTheme, sortableTable, toast, viewTabs } from "./ui.js";
@@ -169,7 +169,7 @@ function verdictBlock(r, key) {
     : [`${v.label} in ${nm(r)}: no significant trend`];
   return el("article", { class: `verdict ${r.significant ? "is-significant" : "not-significant"}` },
     key ? el("p", { class: "verdict-region" }, el("i", { class: `key series-${key === "a" ? 1 : 2}` }), r.region.name)
-      : el("p", { class: "question", text: `Is ${v.label.toLowerCase()} changing in ${nm(r)}?` }),
+      : el("p", { class: "question", text: `${r.region.name} · ${r.period[0]}–${r.period[1]}` }),
     el(key ? "h2" : "h1", { class: "verdict-headline" }, ...title),
     key ? statsRow(r) : null);
 }
@@ -299,12 +299,14 @@ function openAbout(a) {
 function renderSeries(a, b) {
   const body = el("div", { class: "figure-body" });
   const views = b ? [{ id: "chart", label: "Change" }, { id: "table", label: "Table" }]
-    : [{ id: "chart", label: "Change" }, { id: "shift", label: "Shift" }, { id: "table", label: "Table" }];
+    : [{ id: "chart", label: "Change" }, ...(a.zonal ? [{ id: "lat", label: "Latitude" }] : []),
+      { id: "shift", label: "Distribution" }, { id: "table", label: "Table" }];
   if (!views.some((x) => x.id === seriesView)) seriesView = "chart";
   const draw = (view) => {
     seriesView = view;
     if (view === "table") body.replaceChildren(...seriesTable(a, b));
-    else if (view === "shift") body.replaceChildren(shiftChart(a));
+    else if (view === "shift") body.replaceChildren(decadeRidges(a));
+    else if (view === "lat") body.replaceChildren(latitudeTime(a));
     else body.replaceChildren(...(b ? seriesChart(a, b) : [anomalyChart(a)]));
   };
   $("card-series").replaceChildren(
@@ -385,7 +387,7 @@ function whyCard(r) {
 
 async function renderScan(id) {
   const box = $("scan-body");
-  $("scan-title").textContent = `Every variable in ${regionName(state.region)}`;
+  $("scan-title").textContent = `All variables · ${regionLabel(state.region)}`;
   $("scan-gist").textContent = "";
   box.replaceChildren(el("p", { class: "loading-note", text: "Testing every variable…" }));
   let data;
@@ -573,8 +575,6 @@ function openGuide() {
           el("li", { text: "The globe shows where the variable is changing: bright cells have a significant trend, faint cells could be chance." }),
           el("li", { text: "The panel gives the verdict for the region: the rate of change, its likely range, and whether it is significant." }),
           el("li", { text: "Open the Place tab and click any point for that exact spot: vital signs, where its rain goes, the weather now." })),
-        el("h3", { text: "Not sure what to look at?" }),
-        el("button", { type: "button", class: "btn", text: "Answer three questions", onclick: () => step(1) }),
         el("h3", { text: "Worked examples" }),
         el("ul", { class: "examples" }, ...DEMOS.map((d) => el("li", {},
           el("div", {}, el("strong", { text: d.title }), el("span", { text: d.blurb })),
@@ -673,7 +673,7 @@ function endTour() {
 /* ---------- command palette and shortcuts ---------- */
 
 function openShortcuts() {
-  const rows = [["⌘ K or Ctrl K", "Search everything"], ["/", "Search everything"], ["1  2  3", "Trends, weather, satellite"],
+  const rows = [["⌘ K or Ctrl K", "Search everything"], ["/", "Search everything"], ["1  2  3", "Trends, weather, satellite"], ["D", "Trend as 3D columns"],
     ["Space", "Play or pause the timeline"], ["←  →", "Step the timeline by one image or hour"], ["?", "This list"], ["Esc", "Close a dialog or stop drawing"]];
   openDialog("Keyboard shortcuts", [el("table", { class: "data shortcuts" },
     el("tbody", {}, ...rows.map(([k, what]) => el("tr", {}, el("td", {}, ...k.split("  ").map((x) => el("kbd", { text: x }))), el("td", { text: what })))))]);
@@ -685,6 +685,7 @@ function registerCommands() {
     { icon: "◐", label: "Show weather, last 24 hours", detail: "Clouds, rain, temperature and wind from NASA GEOS-FP", keys: ["2"], keywords: "weather clouds rain wind now", run: view("weather") },
     ...(PREVIEW ? [] : [{ icon: "◉", label: "Show the satellite loop", detail: "GOES and Himawari, last 3 hours", keys: ["3"], keywords: "satellite imagery goes himawari clouds live", run: view("satellite") }]),
     { icon: "↗", label: "Show trends", detail: "The chosen variable's trend map", keys: ["1"], keywords: "trend map", run: view("trends") },
+    { icon: "▥", label: "Trend as 3D columns", detail: "Height is the rate; only significant cells rise", keys: ["D"], keywords: "3d columns extrude bars height", run: () => { view("trends")(); document.getElementById("toggle-3d").click(); } },
     { icon: "⇄", label: "Compare with another region…", keywords: "compare versus vs", run: () => boxes.compare.open() },
     { icon: "❝", label: "Cite this result and get its API query", keywords: "cite citation reference api reproduce json curl", run: openCite },
     ...(PREVIEW ? [] : [
@@ -760,8 +761,8 @@ async function update() {
   $("stats").replaceChildren(...(b ? [] : [statsRow(a)]));
   pointNote(a);
   renderSeries(a, b);
-  const yesNo = (r) => (r.significant ? `Yes, ${pEq(r.tests.mann_kendall.p)}` : `No, ${pEq(r.tests.mann_kendall.p)}`);
-  $("numbers-gist").textContent = b ? `${a.region.name}: ${a.significant ? "yes" : "no"} · ${b.region.name}: ${b.significant ? "yes" : "no"}` : yesNo(a);
+  const conf = (r) => `${r.significant ? "significant" : "n.s."}, ${pEq(r.tests.mann_kendall.p)}`;
+  $("numbers-gist").textContent = b ? `${a.region.name}: ${a.significant ? "sig." : "n.s."} · ${b.region.name}: ${b.significant ? "sig." : "n.s."}` : conf(a);
   $("numbers-body").replaceChildren(...(b
     ? [el("h3", { class: "sub" }, el("i", { class: "key series-1" }), a.region.name), ...evidenceCard(a),
        el("h3", { class: "sub" }, el("i", { class: "key series-2" }), b.region.name), ...evidenceCard(b)]
@@ -796,6 +797,7 @@ async function main() {
     if (e.metaKey || e.ctrlKey || e.altKey || e.target.closest("input, textarea, select, [contenteditable]") || document.querySelector("dialog[open]")) return;
     const modes = { 1: "trends", 2: "weather", 3: "satellite" };
     if (modes[e.key]) canary.setMode(modes[e.key]);
+    else if (e.key === "d" || e.key === "D") document.getElementById("toggle-3d")?.click();
     else if (e.key === "?") openShortcuts();
   });
 

@@ -73,6 +73,12 @@ reads the value under the cursor (for example "+0.42 °C per decade · significa
 "18.0 °C · cloud 100% · dry · wind 9 m/s from S"). A timeline plays, pauses and scrubs the weather
 and the satellite loop; Space plays and pauses, the arrow keys step.
 
+**3D** (or the D key) stands the trend map up as columns (`web/columns.js`, MapLibre
+`fill-extrusion` on the globe): cells pooled to 2° × 2.5°, height proportional to the local rate,
+colour its direction in the variable's family. Only cells that pass the false-discovery-rate test
+rise; the rest stay flat on the map beneath. The coarse global fields fade out past zoom 7 so
+imagery shows at street scale.
+
 ### Live alerts
 
 The **Live** tab is built as alerts are reported. The server reads five feeds every five minutes
@@ -91,14 +97,30 @@ ring pulses where it happened.
 Each alert carries a severity on Canary's status scale (critical, serious, watch) with its
 shape and colour, the place, how long ago, and the full report.
 
+Methane plumes are drawn as proportional symbols (area ∝ kg/h). Choosing one lays Carbon
+Mapper's enhancement image on the ground at the plume's footprint, proxied and cached by the
+server because the image links are signed and short-lived (`/api/plume/{id}.png`). The card gives
+the rate with its 1σ uncertainty and the annual total if continuous. With the **Methane** filter
+on, a ranked chart shows every current plume's rate with its uncertainty and the cumulative
+share, so the few sources that dominate stand out.
+
 ### Charts
 
 The main chart is the one climate assessments use: each year's difference from the 1991–2020
 normal as a bar in the variable's colour family, with the record year labelled. No fitted line is
 drawn over the data: the Theil-Sen slope, its 95% interval, the signal-to-noise ratio and the
-Mann-Kendall result are reported beside the chart. **Shift** shows
-how the distribution of years moved, first fifteen years against the last fifteen. **Every
-variable** is a forest plot: each variable's change per decade in units of its own year-to-year
+Mann-Kendall result are reported beside the chart.
+
+**Latitude** is a Hovmöller diagram: the region's zonal-mean anomaly for every year and latitude
+band (up to 36 bands), each against its own 1991–2020 normal, so you can see where in latitude a
+change began and how it spread (Arctic amplification shows as the top-right corner going red).
+Beside it, the Theil-Sen trend per decade in each band with its 95% range; filled points pass
+the false-discovery-rate test. **Distribution** follows Hansen, Sato and Ruedy (2012): every
+grid cell's yearly value as a standardised anomaly (departure from that cell's 1991–2020 mean, in
+units of that cell's 1991–2020 standard deviation), one area-weighted density per decade, stacked
+as a ridgeline. The shift of the curve is the change in the mean; its tails, and the share of area
+beyond ±2σ, are the extremes. **All
+variables** is a forest plot: each variable's change per decade in units of its own year-to-year
 variability, with its 95% range, so rain and temperature share one axis. Sources, methods and
 tests sit behind the ⓘ button and the folds below the chart.
 

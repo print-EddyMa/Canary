@@ -17,6 +17,7 @@ One call returns everything the start page shows:
 from __future__ import annotations
 
 import json
+import warnings
 import math
 
 import numpy as np
@@ -140,6 +141,106 @@ def _world_split(variable_id: str, info: dict, period: list[int]) -> dict | None
             "unclear_percent": round(100 - layer["percent_significant"], 1), "cells": layer["cells_tested"]}
 
 
+def zonal(c: cube.Cube, region_mask: np.ndarray, window: np.ndarray, decimals: int, max_bands: int = 36) -> dict | None:
+    """Latitude-time anomalies (a Hovmöller diagram): the region's mean in each latitude band, each year,
+    minus that band's 1991-2020 normal. Shows where in latitude and when a change appeared."""
+    present = np.nonzero(region_mask.any(axis=1))[0]
+    if present.size < 2:
+        return None
+    rows = np.arange(present[0], present[-1] + 1)  # contiguous, so bands are evenly spaced
+    lats = c.lats[rows]
+    step = max(1, int(np.ceil(rows.size / max_bands)))
+    data = np.where(region_mask[None, rows, :], c.data[:, rows, :], np.nan)
+    with np.errstate(invalid="ignore"), warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        row_mean = np.nanmean(data, axis=2)  # (t, rows)
+        bands, edges = [], []
+        for i in range(0, rows.size, step):
+            w = np.cos(np.radians(lats[i:i + step]))
+            block = row_mean[:, i:i + step]
+            ok = np.isfinite(block)
+            num = np.where(ok, block * w, 0).sum(axis=1)
+            den = (ok * w).sum(axis=1)
+            bands.append(np.where(den > 0, num / np.where(den > 0, den, 1), np.nan))
+            edges.append([float(lats[i]), float(lats[min(i + step, rows.size) - 1])])
+        grid = np.stack(bands, axis=1)  # (t, bands)
+        base = (c.years >= BASELINE[0]) & (c.years <= BASELINE[1])
+        normal = np.nanmean(grid[base], axis=0)
+    anomaly = (grid - normal)[window]
+    if not np.isfinite(anomaly).any():
+        return None
+    t_years = c.years[window].astype(float)
+    profile, tested = [], []
+    for j in range(anomaly.shape[1]):
+        col = anomaly[:, j]
+        ok = np.isfinite(col)
+        if ok.sum() < MIN_YEARS:
+            profile.append(None)
+            continue
+        mk = trend.mann_kendall(col[ok], t_years[ok])
+        profile.append([round(float(mk.slope * 10), decimals + 2), round(float(mk.slope_low * 10), decimals + 2),
+                        round(float(mk.slope_high * 10), decimals + 2)])
+        tested.append((j, mk.p))
+    significant = [False] * len(profile)
+    if tested:
+        for (j, _), q in zip(tested, trend.fdr_adjust([p for _, p in tested])):
+            significant[j] = bool(q < ALPHA)
+    half = float(c.lats[1] - c.lats[0]) / 2
+    return {"lat": [[round(a - half, 2), round(b + half, 2)] for a, b in edges],
+            "anomaly": [[None if not np.isfinite(v) else round(float(v), decimals + 2) for v in row] for row in anomaly],
+            "trend": profile, "significant": significant, "baseline": list(BASELINE)}
+
+
+SIGMA_EDGES = np.linspace(-5, 5, 51)
+
+
+def spread(c: cube.Cube, region_mask: np.ndarray, window: np.ndarray) -> dict | None:
+    """How the distribution of local anomalies moved, decade by decade (after Hansen et al. 2012).
+
+    Every cell-year in the region becomes a standardised anomaly: its departure from that cell's own
+    1991-2020 mean, in units of that cell's 1991-2020 interannual standard deviation. Histograms per
+    decade, area-weighted, show whether the whole curve shifted and whether the tails widened."""
+    rows, cols = np.nonzero(region_mask)
+    if rows.size < 30:
+        return None
+    if rows.size > 60000:  # thin very large regions evenly; the histogram shape is unchanged
+        keep = np.arange(0, rows.size, int(np.ceil(rows.size / 60000)))
+        rows, cols = rows[keep], cols[keep]
+    x = np.asarray(c.data[:, rows, cols], dtype=np.float64)  # (t, cells)
+    base = (c.years >= BASELINE[0]) & (c.years <= BASELINE[1])
+    with warnings.catch_warnings():
+        warnings.simplefilter("ignore", RuntimeWarning)
+        mu = np.nanmean(x[base], axis=0)
+        sd = np.nanstd(x[base], axis=0, ddof=1)
+    good = np.isfinite(sd) & (sd > 0)
+    if good.sum() < 30:
+        return None
+    z = (x[:, good] - mu[good]) / sd[good]
+    w = np.cos(np.radians(c.lats[rows[good]]))
+    years = c.years
+    decades = []
+    first = int(years[window][0])
+    for start in range(first - first % 10, int(years[window][-1]) + 1, 10):
+        sel = window & (years >= start) & (years < start + 10)
+        if sel.sum() < 3:
+            continue
+        block = z[sel]
+        ok = np.isfinite(block)
+        weights = np.broadcast_to(w, block.shape)[ok]
+        vals = np.clip(block[ok], -4.999, 4.999)
+        hist, _ = np.histogram(vals, bins=SIGMA_EDGES, weights=weights)
+        total = weights.sum()
+        decades.append({"years": [int(years[sel][0]), int(years[sel][-1])],
+                        "density": [round(float(h / total / 0.2), 4) for h in hist],
+                        "mean": round(float((vals * weights).sum() / total), 3),
+                        "above_2sd": round(float(weights[vals > 2].sum() / total * 100), 1),
+                        "below_2sd": round(float(weights[vals < -2].sum() / total * 100), 1)})
+    if len(decades) < 2:
+        return None
+    return {"edges": [round(float(e), 2) for e in SIGMA_EDGES], "decades": decades, "baseline": list(BASELINE),
+            "cells": int(good.sum())}
+
+
 def series_for(variable_id: str, region: str) -> tuple[np.ndarray, np.ndarray, int, cube.Cube, np.ndarray]:
     c = cube.load(variable_id)
     m = regions.mask(region, c.lats, c.lons)
@@ -238,9 +339,14 @@ def analyse(variable_id: str, region: str, start: int | None = None, end: int | 
         "more_years_needed": more_years,
         "split": None,
         "links": [],
+        "zonal": None,
+        "spread": None,
     }
     if with_split:
         result["split"] = _split(variable, c, m, window) or _world_split(variable.id, info, result["period"])
+    if with_split:
+        result["zonal"] = zonal(c, m, window, variable.decimals)
+        result["spread"] = spread(c, m, window)
     if with_links:
         result["links"] = climate_links(np.where(window, series, np.nan)[window], years[window])
     return result

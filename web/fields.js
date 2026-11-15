@@ -189,7 +189,7 @@ class GpuCanvas {
       map.addSource(this.id, { type: "canvas", canvas: this.canvas, coordinates: WORLD, animate: false });
       const before = (this.beforeId || []).find((id) => map.getLayer(id));
       map.addLayer({ id: this.id, type: "raster", source: this.id,
-        paint: { "raster-opacity": this.opacity, "raster-fade-duration": 0, "raster-resampling": "linear" } }, before);
+        paint: { "raster-opacity": this.opacityAt(this.opacity), "raster-fade-duration": 0, "raster-resampling": "linear" } }, before);
       this.added = true;
       return;
     }
@@ -201,9 +201,14 @@ class GpuCanvas {
     requestAnimationFrame(() => requestAnimationFrame(() => { if (!this.playing) source.pause(); }));
   }
 
+  /** Global fields are coarse (about 0.5°): fade them out at street zoom so the ground shows. */
+  opacityAt(value) {
+    return ["interpolate", ["linear"], ["zoom"], 6.5, value, 8.5, 0];
+  }
+
   setOpacity(value) {
     this.opacity = value;
-    if (this.added && this.map.getLayer(this.id)) this.map.setPaintProperty(this.id, "raster-opacity", value);
+    if (this.added && this.map.getLayer(this.id)) this.map.setPaintProperty(this.id, "raster-opacity", this.opacityAt(value));
   }
 
   setVisible(on) {

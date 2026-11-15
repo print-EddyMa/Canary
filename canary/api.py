@@ -215,6 +215,18 @@ async def alert_stream(request: Request) -> StreamingResponse:
                              headers={"Cache-Control": "no-cache", "X-Accel-Buffering": "no"})
 
 
+@app.get("/api/plume/{plume_id}.png")
+def plume_png(plume_id: str) -> Response:
+    """A Carbon Mapper methane plume image (enhancement only, transparent elsewhere)."""
+    try:
+        data = alerts.plume_image(plume_id)
+    except httpx.HTTPError as exc:
+        raise HTTPException(502, f"The plume image did not load: {exc}") from exc
+    if data is None:
+        raise HTTPException(404, "No image for this plume.")
+    return Response(data, media_type="image/png", headers={"Cache-Control": "public, max-age=86400"})
+
+
 @app.get("/api/weather")
 def weather_day() -> dict:
     """The last 24 hours of global weather, hour by hour: what is ready and how to read it."""

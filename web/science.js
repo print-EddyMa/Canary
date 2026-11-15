@@ -191,3 +191,157 @@ export function forestPlot(rows, current, onPick) {
     el("div", { class: "forest-head" }, el("span", { text: "Variable" }), axis, el("span", { text: "Per decade" })),
     list);
 }
+
+/** A latitude-time diagram (Hovmöller): one cell per year and latitude band, coloured by the
+ *  anomaly against that band's own 1991-2020 normal. It shows where a change began and how it
+ *  spread: Arctic amplification, a drying belt, a band of snow loss. */
+export function latitudeTime(r, { width = 440, height = 290 } = {}) {
+  const z = r.zonal, v = r.variable;
+  if (!z || !z.lat.length) return el("p", { class: "note-text", text: "Too few latitude rows in this region for a latitude–time view." });
+  const nb = z.lat.length, ny = r.years.length;
+  const sense = v.up === "a" ? -1 : 1;
+  const mags = z.anomaly.flat().filter((x) => x != null).map(Math.abs).sort((p, q) => p - q);
+  const vmax = mags[Math.floor(mags.length * 0.98)] || mags[mags.length - 1] || 1;
+  const W = width, H = height, PW = 86, m = { l: 34, r: PW + 14, t: 18, b: 44 };
+  const lat0 = z.lat[0][0], lat1 = z.lat[nb - 1][1];
+  const cw = (W - m.l - m.r) / ny;
+  const sx = (i) => m.l + i * cw;
+  const sy = (lat) => H - m.b - ((lat - lat0) / (lat1 - lat0)) * (H - m.t - m.b);
+  const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "sci hovmoller", role: "img", tabindex: 0,
+    "aria-label": `${v.label} anomaly by latitude and year in ${r.region.name}, base ${z.baseline[0]} to ${z.baseline[1]}` });
+  const cells = svg("g", { "shape-rendering": "crispEdges" });
+  z.anomaly.forEach((row, i) => row.forEach((val, j) => {
+    if (val == null) return;
+    const [a, b] = z.lat[j];
+    cells.append(svg("rect", { x: sx(i), y: sy(b), width: cw + 0.4, height: sy(a) - sy(b) + 0.4,
+      fill: familyColour(v.family, (val / vmax) * sense) }));
+  }));
+  root.append(cells);
+  const span = lat1 - lat0;
+  const step = span > 120 ? 30 : span > 50 ? 15 : span > 20 ? 5 : span > 8 ? 2 : 1;
+  for (let lat = Math.ceil(lat0 / step) * step; lat <= lat1; lat += step) {
+    root.append(svg("line", { class: lat === 0 ? "zero" : "grid", x1: m.l, x2: W - m.r, y1: sy(lat), y2: sy(lat), opacity: 0.55 }));
+    text(root, m.l - 5, sy(lat) + 3.5, lat === 0 ? "EQ" : `${Math.abs(lat)}°${lat > 0 ? "N" : "S"}`, { class: "tick", "text-anchor": "end" });
+  }
+  for (let year = Math.ceil(r.years[0] / 10) * 10; year <= r.years[ny - 1]; year += 10) {
+    const i = r.years.indexOf(year);
+    if (i >= 0) text(root, sx(i) + cw / 2, H - m.b + 13, year, { class: "tick", "text-anchor": "middle" });
+  }
+  text(root, m.l, 10, `Zonal-mean anomaly (${v.unit}), base ${z.baseline[0]}–${z.baseline[1]}`, { class: "axis-title" });
+  // Colour bar, under the year axis.
+  const bw = Math.min(180, W - m.l - m.r), bx = m.l + (W - m.l - m.r - bw) / 2, by = H - 11, steps = 48;
+  for (let k = 0; k < steps; k++) {
+    const t = (2 * k) / (steps - 1) - 1;
+    root.append(svg("rect", { x: bx + (k * bw) / steps, y: by, width: bw / steps + 0.5, height: 6, fill: familyColour(v.family, t * sense) }));
+  }
+  const d = digits(vmax);
+  text(root, bx - 4, by + 6, fmt(-vmax, d), { class: "tick", "text-anchor": "end" });
+  text(root, bx + bw + 4, by + 6, `${fmt(vmax, d)} ${v.unit}`, { class: "tick" });
+  // Zonal trend profile: Theil-Sen slope per decade in each band, with its 95% range.
+  const tr = z.trend || [];
+  const vals = tr.filter(Boolean).flatMap((q) => [q[1], q[2]]).concat([0]);
+  if (vals.length > 1) {
+    const px0 = W - PW, px1 = W - 4;
+    let plo = Math.min(...vals), phi = Math.max(...vals);
+    const pp = (phi - plo) * 0.08 || 1; plo -= pp; phi += pp;
+    const px = (q) => px0 + ((q - plo) / (phi - plo)) * (px1 - px0);
+    const mid = (j) => sy((z.lat[j][0] + z.lat[j][1]) / 2);
+    root.append(svg("line", { class: "zero", x1: px(0), x2: px(0), y1: m.t, y2: H - m.b }));
+    const band = tr.map((q, j) => (q ? [j, q] : null)).filter(Boolean);
+    if (band.length > 1) {
+      const up = band.map(([j, q]) => `${px(q[2]).toFixed(1)} ${mid(j).toFixed(1)}`);
+      const dn = band.slice().reverse().map(([j, q]) => `${px(q[1]).toFixed(1)} ${mid(j).toFixed(1)}`);
+      root.append(svg("path", { d: `M${up.join("L")}L${dn.join("L")}Z`, class: "profile-band" }));
+      root.append(svg("path", { d: "M" + band.map(([j, q]) => `${px(q[0]).toFixed(1)} ${mid(j).toFixed(1)}`).join("L"), class: "profile-line" }));
+    }
+    band.forEach(([j, q]) => {
+      const sig = z.significant && z.significant[j];
+      root.append(svg("circle", { cx: px(q[0]), cy: mid(j), r: sig ? 2.4 : 1.8,
+        fill: sig ? familyColour(v.family, Math.sign(q[0]) * sense * 0.85) : "var(--surface)",
+        stroke: sig ? "none" : "var(--ink-3)", "stroke-width": 1 }));
+    });
+    const pt = ticks(plo, phi, 3);
+    for (const t of pt.out) text(root, px(t), H - m.b + 12, t === 0 ? "0" : fmt(t, pt.decimals), { class: "tick", "text-anchor": "middle" });
+    text(root, px0, 10, "Trend /decade", { class: "axis-title" });
+  }
+  const wrap = el("div", { class: "plot sci-wrap" }, root);
+  const tip = el("div", { class: "tooltip", hidden: "" });
+  const box = svg("rect", { class: "cell-focus", visibility: "hidden", fill: "none" });
+  root.append(box);
+  wrap.append(tip);
+  root.addEventListener("pointermove", (e) => {
+    const b = root.getBoundingClientRect();
+    const x = ((e.clientX - b.left) / b.width) * W, y = ((e.clientY - b.top) / b.height) * H;
+    const i = Math.floor((x - m.l) / cw);
+    const lat = lat0 + ((H - m.b - y) / (H - m.t - m.b)) * (lat1 - lat0);
+    const j = z.lat.findIndex(([a, c]) => lat >= a && lat < c);
+    const val = i >= 0 && i < ny && j >= 0 ? z.anomaly[i][j] : null;
+    if (val == null) { tip.hidden = true; box.setAttribute("visibility", "hidden"); return; }
+    const [a, c] = z.lat[j];
+    const ll = (q) => `${Math.abs(q).toFixed(1)}°${q >= 0 ? "N" : "S"}`;
+    box.setAttribute("x", sx(i)); box.setAttribute("width", cw);
+    box.setAttribute("y", sy(c)); box.setAttribute("height", sy(a) - sy(c)); box.setAttribute("visibility", "visible");
+    const q = z.trend && z.trend[j];
+    tip.replaceChildren(el("strong", { text: String(r.years[i]) }), el("div", { text: `${ll(a)} to ${ll(c)}` }),
+      el("div", { text: `anomaly ${fmt(val, v.decimals)} ${v.unit}` }),
+      q ? el("div", { text: `band trend ${fmt(q[0], v.decimals + 1)} /decade${z.significant[j] ? "" : " (n.s.)"}` }) : null);
+    tip.hidden = false;
+    const left = ((sx(i) + cw / 2) / W) * b.width, flip = left > b.width * 0.6;
+    tip.style.left = flip ? "" : `${left + 12}px`;
+    tip.style.right = flip ? `${b.width - left + 12}px` : "";
+    tip.style.top = `${(y / H) * b.height}px`;
+  });
+  root.addEventListener("pointerleave", () => { tip.hidden = true; box.setAttribute("visibility", "hidden"); });
+  return wrap;
+}
+
+/** Shifting distributions (after Hansen, Sato and Ruedy 2012): every cell-year in the region as a
+ *  standardised local anomaly, one density per decade, stacked as a ridgeline. The curve moving
+ *  right or left is the change in the mean; its tails are the extremes. */
+export function decadeRidges(r, { width = 440, height = 290 } = {}) {
+  const sp = r.spread, v = r.variable;
+  if (!sp) return shiftChart(r, { width, height });
+  const sense = v.up === "a" ? -1 : 1;
+  const ds = sp.decades, n = ds.length, e = sp.edges;
+  const mids = e.slice(0, -1).map((x, i) => (x + e[i + 1]) / 2);
+  const W = width, H = height, m = { l: 74, r: 64, t: 22, b: 24 };
+  const lo = -4.5, hi = 4.5;
+  const sx = (x) => m.l + ((x - lo) / (hi - lo)) * (W - m.l - m.r);
+  const row = (H - m.t - m.b) / (n + 0.6);
+  const top = Math.max(...ds.flatMap((d) => d.density));
+  const amp = row * 1.55 / top;
+  const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "sci ridges", role: "img", tabindex: 0,
+    "aria-label": `Distribution of local ${v.label.toLowerCase()} anomalies in ${r.region.name} by decade, in standard deviations of ${sp.baseline[0]} to ${sp.baseline[1]}` });
+  for (const t of [-3, -2, -1, 0, 1, 2, 3]) {
+    root.append(svg("line", { class: t === 0 ? "zero" : "grid", x1: sx(t), x2: sx(t), y1: m.t - 6, y2: H - m.b }));
+    text(root, sx(t), H - 8, t === 0 ? "0" : `${fmt(t, 0)}σ`, { class: "tick", "text-anchor": "middle" });
+  }
+  text(root, m.l, 10, `Local anomaly in σ of ${sp.baseline[0]}–${sp.baseline[1]}`, { class: "axis-title" });
+  text(root, W - 4, 10, "> +2σ", { class: "axis-title", "text-anchor": "end" });
+  const defs = svg("defs", {});
+  root.append(defs);
+  ds.forEach((d, k) => {
+    const base = m.t + row * (k + 1.4);
+    const id = `ridge-${Math.random().toString(36).slice(2, 8)}`;
+    // Colour runs along the anomaly axis, in user space, so every ridge shares one scale.
+    const grad = svg("linearGradient", { id, gradientUnits: "userSpaceOnUse", x1: sx(lo), x2: sx(hi), y1: 0, y2: 0 });
+    for (let s = 0; s <= 8; s++) {
+      const x = lo + (s / 8) * (hi - lo);
+      grad.append(svg("stop", { offset: s / 8, "stop-color": familyColour(v.family, (x / 3) * sense) }));
+    }
+    defs.append(grad);
+    const pts = mids.map((x, i) => [sx(Math.max(lo, Math.min(hi, x))), base - d.density[i] * amp]);
+    const line = "M" + pts.map(([x, y]) => `${x.toFixed(1)} ${y.toFixed(1)}`).join("L");
+    root.append(svg("path", { d: `${line}L${sx(hi)} ${base}L${sx(lo)} ${base}Z`, fill: `url(#${id})`, class: "ridge-fill" }));
+    root.append(svg("path", { d: line, class: "ridge-line" }));
+    root.append(svg("line", { class: "ridge-mean", x1: sx(d.mean), x2: sx(d.mean), y1: base, y2: base - row * 0.9 }));
+    const label = d.years[0] === d.years[1] ? `${d.years[0]}` : `${d.years[0]}–${String(d.years[1]).slice(2)}`;
+    text(root, m.l - 8, base - 2, label, { class: "tick", "text-anchor": "end" });
+    text(root, W - 4, base - 2, `${d.above_2sd.toFixed(1)}%`, { class: "end-sub", "text-anchor": "end" });
+  });
+  const first = ds[0], last = ds[n - 1];
+  const wrap = el("div", { class: "plot sci-wrap" }, root,
+    el("p", { class: "fig-caption" }, `Mean ${fmt(first.mean, 2)}σ → ${fmt(last.mean, 2)}σ · area > +2σ ${first.above_2sd}% → ${last.above_2sd}% · `
+      + `area < −2σ ${first.below_2sd}% → ${last.below_2sd}% · ${sp.cells.toLocaleString()} cells`));
+  return wrap;
+}

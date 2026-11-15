@@ -27,7 +27,7 @@ from . import catalogue, cube, investigate, regions
 WEB = Path(__file__).resolve().parent.parent / "web"
 MAPLIBRE = "https://unpkg.com/maplibre-gl@5.6.0/dist"
 SCRIPTS = ("start.js", "app.js", "charts.js", "util.js", "ui.js", "record.js", "dossier.js", "dashboard.js",
-           "wind.js", "fields.js", "command.js", "live.js", "science.js", "preview.js")
+           "wind.js", "fields.js", "columns.js", "command.js", "live.js", "science.js", "preview.js")
 # The example places offered in the Place pane (web/app.js DEMOS).
 PLACES = [(78.2, 15.6, "Svalbard, Arctic Norway"), (0.0, -150.0, "Equatorial Pacific"),
           (39.74, -104.99, "Denver, Colorado"), (-1.28, 36.82, "Nairobi, Kenya")]
@@ -65,7 +65,14 @@ def write_data(out: Path) -> None:
         _dump(out / "data/places.json", places)
         from .sources import alerts
         alerts.poll()
-        _dump(out / "data/alerts.json", get("/api/alerts"))
+        live = get("/api/alerts")
+        _dump(out / "data/alerts.json", live)
+        # Plume images, at the path the page asks for (relative to the snapshot).
+        for a in live["alerts"]:
+            if a.get("image"):
+                path = out / a["image"].lstrip("/")
+                path.parent.mkdir(parents=True, exist_ok=True)
+                path.write_bytes(client.get(a["image"]).raise_for_status().content)
         # The last 24 hours of weather, as served when the snapshot was made.
         meta = get("/api/weather")
         if meta.get("status") == "ready":

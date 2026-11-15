@@ -32,19 +32,23 @@ function ago(iso) {
 function geojson() {
   return { type: "FeatureCollection", features: [...live.alerts.values()].map((a) => ({
     type: "Feature", geometry: { type: "Point", coordinates: [a.lon, a.lat] },
-    properties: { id: a.id, severity: a.severity, methane: a.kind === "Methane plume", rank: RANK[a.severity] },
+    properties: { id: a.id, severity: a.severity, methane: a.kind === "Methane plume", rank: RANK[a.severity], rate: a.value || 0 },
   })) };
 }
 
 function addLayers(map) {
   map.addSource("alerts", { type: "geojson", data: geojson() });
   const colour = ["case", ["get", "methane"], METHANE, ["match", ["get", "severity"], "critical", COLOUR.critical, "serious", COLOUR.serious, COLOUR.watch]];
+  // Methane symbols are proportional: area grows with the emission rate (kg/h).
+  const methaneRadius = ["interpolate", ["linear"], ["sqrt", ["get", "rate"]], 30, 4, 100, 9, 200, 15];
+  const radius = ["case", ["get", "methane"], methaneRadius, ["match", ["get", "severity"], "critical", 6.5, "serious", 5.5, 4.5]];
   map.addLayer({ id: "alerts-halo", type: "circle", source: "alerts",
-    paint: { "circle-radius": ["match", ["get", "severity"], "critical", 16, "serious", 12, 8], "circle-color": colour,
-      "circle-opacity": 0.18, "circle-blur": 0.4 } });
+    paint: { "circle-radius": ["case", ["get", "methane"], ["*", methaneRadius, 1.7], ["match", ["get", "severity"], "critical", 16, "serious", 12, 8]],
+      "circle-color": colour, "circle-opacity": 0.18, "circle-blur": 0.4 } });
   map.addLayer({ id: "alerts", type: "circle", source: "alerts",
-    paint: { "circle-radius": ["match", ["get", "severity"], "critical", 6.5, "serious", 5.5, 4.5], "circle-color": colour,
-      "circle-stroke-color": "#0b0e13", "circle-stroke-width": 1.5 } });
+    paint: { "circle-radius": radius, "circle-color": colour,
+      "circle-opacity": ["case", ["get", "methane"], 0.78, 1],
+      "circle-stroke-color": ["case", ["get", "methane"], "#e9dcfa", "#0b0e13"], "circle-stroke-width": ["case", ["get", "methane"], 1, 1.5] } });
   map.on("click", "alerts", (e) => { e.originalEvent.stopPropagation(); focus(e.features[0].properties.id); });
   map.on("mouseenter", "alerts", () => { map.getCanvas().style.cursor = "pointer"; });
   map.on("mouseleave", "alerts", () => { map.getCanvas().style.cursor = ""; });
@@ -58,12 +62,32 @@ function pulse(a) {
   setTimeout(() => m.remove(), 6000);
 }
 
+/** Lay a methane plume's enhancement image on the ground where the instrument saw it. */
+function showPlume(a) {
+  const map = live.map;
+  if (map.getLayer("plume")) map.removeLayer("plume");
+  if (map.getSource("plume")) map.removeSource("plume");
+  if (!a || !a.image || !a.bounds) return false;
+  const [w, s, e, n] = a.bounds;
+  const url = a.image.startsWith("/") && window.CANARY_PREVIEW ? a.image.slice(1) : a.image;
+  map.addSource("plume", { type: "image", url, coordinates: [[w, n], [e, n], [e, s], [w, s]] });
+  map.addLayer({ id: "plume", type: "raster", source: "plume",
+    paint: { "raster-opacity": 0.95, "raster-resampling": "nearest", "raster-fade-duration": 300 } }, "alerts-halo");
+  return true;
+}
+
 function focus(id) {
   const a = live.alerts.get(id);
   if (!a) return;
   live.canary.stopSpin();
   live.canary.showPane("today");
-  live.map.flyTo({ center: [a.lon, a.lat], zoom: Math.max(live.map.getZoom(), 4.5), duration: 1400 });
+  const plume = a.kind === "Methane plume" && showPlume(a);
+  if (plume) {
+    const [w, s, e, n] = a.bounds;
+    live.map.fitBounds([[w, s], [e, n]], { padding: 160, maxZoom: 13.5, duration: 1800 });
+  } else {
+    live.map.flyTo({ center: [a.lon, a.lat], zoom: Math.max(live.map.getZoom(), 4.5), duration: 1400 });
+  }
   pulse(a);
   const card = document.querySelector(`[data-alert="${CSS.escape(id)}"]`);
   if (card) {
@@ -86,6 +110,11 @@ function card(a) {
     el("details", { class: "alert-more" },
       el("summary", { "aria-label": "More about this alert" }, icon("chevron")),
       el("div", {},
+        a.image ? el("figure", { class: "plume-figure" },
+          el("img", { src: window.CANARY_PREVIEW ? a.image.slice(1) : a.image, alt: "Methane enhancement image", loading: "lazy", width: 96, height: 96 }),
+          el("figcaption", {}, el("strong", { text: `${a.value.toLocaleString()} kg/h` }),
+            a.uncertainty ? el("span", { text: `± ${a.uncertainty.toLocaleString()} (1σ)` }) : null,
+            el("span", { text: `${(a.value * 24 * 365 / 1e6).toFixed(1)} kt CH₄/yr if continuous` }))) : null,
         a.detail ? el("p", { text: a.detail }) : null,
         el("p", { class: "alert-source" }, `Reported by ${a.source}. `,
           a.url ? el("a", { href: a.url, target: "_blank", rel: "noopener", text: "Full report" }) : null),
@@ -102,13 +131,51 @@ function methaneIcon() {
   return s;
 }
 
+/** Every current plume ranked by emission rate with its 1σ uncertainty: which few sources dominate. */
+function rateChart(plumes) {
+  const rows = plumes.filter((a) => a.value).sort((p, q) => q.value - p.value).slice(0, 15);
+  if (rows.length < 2) return null;
+  const NS = "http://www.w3.org/2000/svg";
+  const W = 330, row = 15, m = { l: 108, r: 40, t: 18, b: 6 }, H = m.t + rows.length * row + m.b;
+  const top = Math.max(...rows.map((a) => a.value + (a.uncertainty || 0)));
+  const sx = (v) => m.l + (v / top) * (W - m.l - m.r);
+  const total = rows.reduce((t, a) => t + a.value, 0);
+  const node = (tag, attrs, text) => { const n = document.createElementNS(NS, tag); for (const k in attrs) n.setAttribute(k, attrs[k]); if (text != null) n.textContent = text; return n; };
+  const root = node("svg", { viewBox: `0 0 ${W} ${H}`, class: "sci rate-chart", role: "img", "aria-label": "Methane plumes ranked by emission rate" });
+  root.append(node("text", { x: m.l, y: 10, class: "axis-title" }, "Emission rate, kg/h (±1σ)"));
+  let running = 0;
+  rows.forEach((a, i) => {
+    const y = m.t + i * row + row / 2;
+    running += a.value;
+    const g = node("g", { class: "rate-row", tabindex: 0 });
+    g.append(node("text", { x: m.l - 6, y: y + 3.5, class: "tick", "text-anchor": "end" }, `${i + 1}  ${(a.where || "Unknown").slice(0, 15)}`));
+    g.append(node("title", {}, `${a.where || ""}: ${a.value.toLocaleString()} kg/h${a.uncertainty ? ` ± ${a.uncertainty.toLocaleString()}` : ""}`));
+    g.append(node("line", { x1: sx(0), x2: sx(a.value), y1: y, y2: y, class: "rate-stem" }));
+    if (a.uncertainty) g.append(node("line", { x1: sx(Math.max(0, a.value - a.uncertainty)), x2: sx(a.value + a.uncertainty), y1: y, y2: y, class: "rate-err" }));
+    g.append(node("circle", { cx: sx(a.value), cy: y, r: 3.2, fill: METHANE }));
+    g.append(node("text", { x: W - 2, y: y + 3.5, class: "tick", "text-anchor": "end" }, `${Math.round((100 * running) / total)}%`));
+    g.addEventListener("click", () => focus(a.id));
+    g.addEventListener("keydown", (e) => { if (e.key === "Enter") focus(a.id); });
+    root.append(g);
+  });
+  root.append(node("text", { x: W - 2, y: 10, class: "axis-title", "text-anchor": "end" }, "cum."));
+  return el("div", { class: "rate-wrap" }, root);
+}
+
 function renderFeed() {
   const list = $("live-feed");
   if (!list) return;
   const shown = [...live.alerts.values()]
     .filter((a) => live.filter === "all" || group(a) === live.filter)
-    .sort((a, b) => RANK[a.severity] - RANK[b.severity] || Date.parse(b.time || 0) - Date.parse(a.time || 0));
+    .sort(live.filter === "methane" ? (a, b) => (b.value || 0) - (a.value || 0)
+      : (a, b) => RANK[a.severity] - RANK[b.severity] || Date.parse(b.time || 0) - Date.parse(a.time || 0));
   list.replaceChildren(...shown.map(card));
+  const chart = $("live-chart");
+  if (chart) {
+    const c = live.filter === "methane" ? rateChart(shown) : null;
+    chart.replaceChildren(...(c ? [c] : []));
+    chart.hidden = !c;
+  }
   $("live-empty").hidden = shown.length > 0;
   const counts = { critical: 0, serious: 0 };
   for (const a of live.alerts.values()) if (a.severity in counts) counts[a.severity]++;

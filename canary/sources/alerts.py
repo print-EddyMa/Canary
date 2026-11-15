@@ -15,6 +15,7 @@ New alerts are pushed to browsers as they arrive (see `api.alert_stream`).
 
 from __future__ import annotations
 
+import json
 import math
 import re
 import threading
@@ -22,6 +23,8 @@ import time
 from datetime import datetime, timedelta, timezone
 
 import httpx
+
+from .cache import CACHE_DIR
 
 HEADERS = {"User-Agent": "canary-earth-monitor"}
 POLL_SECONDS = 300
@@ -160,6 +163,36 @@ def nws() -> list[dict]:
     return out
 
 
+PLUME_DIR = CACHE_DIR / "plumes"
+_plume_urls: dict[str, str] = {}  # signed image links expire, so they stay on the server
+
+
+def plume_image(plume_id: str) -> bytes | None:
+    """A plume's methane enhancement image as a PNG with a transparent background, cached on disk."""
+    if not re.fullmatch(r"[A-Za-z0-9_\-]{6,80}", plume_id):
+        return None
+    path = PLUME_DIR / f"{plume_id}.png"
+    if path.exists():
+        return path.read_bytes()
+    url = _plume_urls.get(plume_id)
+    if not url:
+        return None
+    import io
+
+    import numpy as np
+    from PIL import Image
+    r = httpx.get(url, timeout=20, follow_redirects=True)
+    r.raise_for_status()
+    rgb = np.asarray(Image.open(io.BytesIO(r.content)).convert("RGB"))
+    # Black is "no enhancement": make it transparent and let the colour carry the concentration.
+    alpha = np.clip(rgb.max(axis=2).astype(np.int32) * 3, 0, 235).astype(np.uint8)
+    buf = io.BytesIO()
+    Image.fromarray(np.dstack([rgb, alpha]), "RGBA").save(buf, "PNG", optimize=True)
+    PLUME_DIR.mkdir(parents=True, exist_ok=True)
+    path.write_bytes(buf.getvalue())
+    return buf.getvalue()
+
+
 def methane() -> list[dict]:
     data = _get(CARBON_MAPPER, limit=200, sort="desc")
     out = []
@@ -168,6 +201,14 @@ def methane() -> list[dict]:
         if p.get("gas") != "CH4" or rate is None or rate < 1000 or p.get("hide_emission"):
             continue
         lon, lat = p["geometry_json"]["coordinates"][:2]
+        pid = str(p["plume_id"])
+        try:
+            raw = p.get("plume_bounds")
+            bounds = [float(x) for x in (json.loads(raw) if isinstance(raw, str) else raw)][:4] if raw else None
+        except (TypeError, ValueError):
+            bounds = None
+        if p.get("plume_png") and bounds:
+            _plume_urls[pid] = p["plume_png"]
         out.append({
             "id": f"cm-{p['plume_id']}", "source": "Carbon Mapper", "kind": "Methane plume",
             "severity": "serious" if rate >= 5000 else "watch",
@@ -177,9 +218,17 @@ def methane() -> list[dict]:
                       + ". A super-emitter: one source releasing as much as thousands of cars' worth of warming.",
             "where": "Offshore" if p.get("is_offshore") else "", "lat": lat, "lon": lon,
             "time": _iso(p.get("scene_timestamp")), "url": f"https://data.carbonmapper.org/#plume={p['plume_id']}",
-            "value": round(rate),
+            "value": round(rate), "uncertainty": round(p["emission_uncertainty_auto"]) if p.get("emission_uncertainty_auto") else None,
+            "image": f"/api/plume/{pid}.png" if pid in _plume_urls else None, "bounds": bounds,
         })
-    return out[:25]
+    out = out[:25]
+    for a in out:  # fetch the images while their links are still valid
+        if a["image"]:
+            try:
+                plume_image(a["id"][3:])
+            except Exception:  # noqa: BLE001 - the plume still shows as a point
+                a["image"] = None
+    return out
 
 
 def eonet() -> list[dict]:

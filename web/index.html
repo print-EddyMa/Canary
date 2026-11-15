@@ -54,6 +54,9 @@
       <button type="button" data-mode="trends" aria-pressed="true" title="Long-term trend of the chosen variable, 1981–2025">Trends</button>
       <button type="button" data-mode="weather" aria-pressed="false" title="The last 24 hours of clouds, rain, temperature and wind (NASA GEOS-FP)">Weather</button>
       <button type="button" data-mode="satellite" aria-pressed="false" title="Geostationary satellite images, last 3 hours">Satellite</button>
+      <span class="modes-sep" aria-hidden="true"></span>
+      <button type="button" id="toggle-3d" class="modes-3d" aria-pressed="false" title="Trend as 3D columns: height is the rate; only significant cells rise (D)">
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M3 13V8m3.3 5V4.5M9.6 13V6.5M13 13V2.5" stroke="currentColor" stroke-width="2" stroke-linecap="round" fill="none"/></svg>3D</button>
     </div>
 
     <div id="timeline" class="timeline" hidden>
@@ -91,15 +94,15 @@
           <article id="card-series" class="figure focus"></article>
           <div id="stats"></div>
           <details id="card-numbers" class="fold">
-            <summary><span>How sure are we?</span><span id="numbers-gist" class="gist"></span></summary>
+            <summary><span>Confidence</span><span id="numbers-gist" class="gist"></span></summary>
             <div id="numbers-body" class="fold-body"></div>
           </details>
           <details id="card-why" class="fold">
-            <summary><span>What might explain it</span><span id="why-gist" class="gist"></span></summary>
+            <summary><span>Drivers</span><span id="why-gist" class="gist"></span></summary>
             <div id="why-body" class="fold-body"></div>
           </details>
           <details id="card-scan" class="fold">
-            <summary><span id="scan-title">Every variable in this region</span><span id="scan-gist" class="gist"></span></summary>
+            <summary><span id="scan-title">All variables</span><span id="scan-gist" class="gist"></span></summary>
             <div id="scan-body" class="fold-body flush"></div>
           </details>
         </div>
@@ -142,6 +145,7 @@
         </div>
         <div id="live-summary" class="live-summary"></div>
         <div id="live-filters" class="chips-row" role="group" aria-label="Show"></div>
+        <div id="live-chart" class="live-chart" hidden></div>
         <ol id="live-feed" class="live-feed"></ol>
         <p id="live-empty" class="note-text" hidden>Nothing to report under this filter.</p>
         <details class="fold">
