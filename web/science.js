@@ -1,8 +1,8 @@
 /* Scientific charts for a regional record, drawn the way climate assessments draw them.
 
    anomalyChart  yearly anomalies against the 1991-2020 normal as bars in the variable's colour
-                 family, the Theil-Sen trend, and its 95% uncertainty fan (the range of slopes,
-                 pivoting on the centre of the data); the record year and the rate labelled directly.
+                 family, the record year labelled. No fitted line is drawn over the data: the rate,
+                 its interval and the test are reported beside the chart.
    shiftChart    how the distribution of years moved: the first and last 15 years as smoothed
                  densities, with their means (the "shifting bell curve").
    forestPlot    every variable in a region on one axis: change per decade in units of each
@@ -61,29 +61,24 @@ export function anomalyChart(r, { width = 440, height = 248 } = {}) {
   const sense = v.up === "a" ? -1 : 1;
   const ok = a.filter((x) => x != null);
   const sd = Math.sqrt(ok.reduce((s, x) => s + x * x, 0) / ok.length) || 1;
-  // The trend and its fan, as anomalies; the fan pivots on the centre of the data.
-  const x0 = r.period[0], x1 = r.period[1], xc = (x0 + x1) / 2;
-  const line = (x) => r.trend.line[0] - r.normal + ((r.trend.line[1] - r.trend.line[0]) / (x1 - x0 || 1)) * (x - x0);
-  const yc = line(xc);
-  const [sLo, sHi] = r.trend.range_per_decade.map((s) => s / 10);
-  const fan = (x, s) => yc + s * (x - xc);
-  const all = ok.concat([fan(x0, sLo), fan(x0, sHi), fan(x1, sLo), fan(x1, sHi), 0]);
+  const x0 = r.period[0], x1 = r.period[1];
+  const all = ok.concat([0]);
   let lo = Math.min(...all), hi = Math.max(...all);
   const pad = (hi - lo) * 0.12;
   lo -= pad; hi += pad;
-  const W = width, H = height, m = { l: 40, r: 64, t: 16, b: 22 };
+  const W = width, H = height, m = { l: 40, r: 12, t: 16, b: 22 };
   const sx = (year) => m.l + ((year - x0 + 0.5) / (n || 1)) * (W - m.l - m.r);
   const sy = (val) => H - m.b - ((val - lo) / (hi - lo)) * (H - m.t - m.b);
   const bw = Math.max(1, ((W - m.l - m.r) / n) * 0.78);
   const root = svg("svg", { viewBox: `0 0 ${W} ${H}`, class: "sci", role: "img", tabindex: 0,
-    "aria-label": `${v.label} in ${r.region.name}: yearly difference from the 1991 to 2020 normal, ${x0} to ${x1}, with the trend and its 95% range` });
+    "aria-label": `${v.label} anomaly in ${r.region.name}, ${x0} to ${x1}, relative to 1991 to 2020` });
   const yt = ticks(lo, hi);
   for (const t of yt.out) {
     root.append(svg("line", { class: t === 0 ? "zero" : "grid", x1: m.l, x2: W - m.r, y1: sy(t), y2: sy(t) }));
     text(root, m.l - 6, sy(t) + 3.5, t === 0 ? "0" : fmt(t, yt.decimals), { class: "tick", "text-anchor": "end" });
   }
   for (let year = Math.ceil(x0 / 10) * 10; year <= x1; year += 10) text(root, sx(year), H - 6, year, { class: "tick", "text-anchor": "middle" });
-  text(root, m.l, 10, `${v.unit}, against the 1991–2020 normal`, { class: "axis-title" });
+  text(root, m.l, 10, `Anomaly (${v.unit}), base 1991–2020`, { class: "axis-title" });
   // Bars: one per year, from the normal, coloured by how far from normal.
   a.forEach((val, i) => {
     if (val == null) return;
@@ -91,23 +86,13 @@ export function anomalyChart(r, { width = 440, height = 248 } = {}) {
     root.append(svg("rect", { x: sx(r.years[i]) - bw / 2, y, width: bw, height: h, rx: 0.8,
       fill: familyColour(v.family, (val / (2.4 * sd)) * sense) }));
   });
-  // The 95% fan and the trend line.
-  const colour = resolve(claimColour(v, r.trend.per_decade, r.significant));
-  const band = `M${sx(x0)} ${sy(fan(x0, sLo))}L${sx(x1)} ${sy(fan(x1, sLo))}L${sx(x1)} ${sy(fan(x1, sHi))}L${sx(x0)} ${sy(fan(x0, sHi))}Z`;
-  root.append(svg("path", { class: "fan", d: band, fill: r.significant ? colour : css("--ink-3"), "fill-opacity": r.significant ? 0.16 : 0.12 }));
-  root.append(svg("line", { class: r.significant ? "trend" : "trend weak", x1: sx(x0), x2: sx(x1), y1: sy(line(x0)), y2: sy(line(x1)),
-    stroke: r.significant ? colour : css("--ink-3") }));
-  // Direct labels: the rate at the end of the line, the record year at its bar.
-  const d = digits(r.trend.per_decade);
-  text(root, sx(x1) + 8, sy(line(x1)) + 4, `${fmt(r.trend.per_decade, d)}`, { class: "end-label", fill: r.significant ? colour : css("--ink-3") });
-  text(root, sx(x1) + 8, sy(line(x1)) + 17, "per decade", { class: "end-sub" });
   let rec = -1;
   a.forEach((val, i) => { if (val != null && (rec < 0 || val * sense > a[rec] * sense)) rec = i; });
   if (rec >= 0) {
     const above = a[rec] >= 0;
     const ry = above ? sy(a[rec]) - 6 : sy(a[rec]) + 13;
     const anchor = rec > n * 0.8 ? "end" : rec < n * 0.2 ? "start" : "middle";
-    text(root, sx(r.years[rec]), ry, `${r.years[rec]} record`, { class: "rec-label", "text-anchor": anchor });
+    text(root, sx(r.years[rec]), ry, `${r.years[rec]}: ${fmt(a[rec], v.decimals)}`, { class: "rec-label", "text-anchor": anchor });
   }
   const wrap = el("div", { class: "plot sci-wrap" }, root);
   const xs = r.years.map((y) => sx(y));
@@ -115,7 +100,7 @@ export function anomalyChart(r, { width = 440, height = 248 } = {}) {
     if (a[i] == null) return null;
     cross.setAttribute("x1", xs[i]); cross.setAttribute("x2", xs[i]);
     cross.setAttribute("y1", m.t); cross.setAttribute("y2", H - m.b); cross.setAttribute("visibility", "visible");
-    return [String(r.years[i]), `${r.values[i].toFixed(v.decimals)} ${v.unit}`, `${fmt(a[i], v.decimals)} against normal`];
+    return [String(r.years[i]), `${r.values[i].toFixed(v.decimals)} ${v.unit}`, `anomaly ${fmt(a[i], v.decimals)}`];
   });
   return wrap;
 }
@@ -163,8 +148,8 @@ export function shiftChart(r, { width = 440, height = 248, span = 15 } = {}) {
   const d = Math.max(v.decimals, digits(shift));
   text(root, sx(mean(ev)), m.t - 9, `${early[0][0]}–${early[k - 1][0]}`, { class: "end-sub", "text-anchor": "middle" });
   text(root, sx(mean(lv)), m.t - 9, `${late[0][0]}–${late[k - 1][0]}`, { class: "end-sub strong", "text-anchor": "middle" });
-  text(root, W - m.r, 12, `Typical year moved ${fmt(shift, d)} ${v.unit}`, { class: "end-label small", "text-anchor": "end", fill: r.significant ? colour : css("--ink-2") });
-  text(root, m.l, 12, `${v.unit}, against the 1991–2020 normal`, { class: "axis-title" });
+  text(root, W - m.r, 12, `Δ mean ${fmt(shift, d)} ${v.unit}`, { class: "end-label small", "text-anchor": "end", fill: r.significant ? colour : css("--ink-2") });
+  text(root, m.l, 12, `Anomaly (${v.unit}), kernel density`, { class: "axis-title" });
   return el("div", { class: "plot sci-wrap" }, root);
 }
 

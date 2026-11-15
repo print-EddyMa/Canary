@@ -1,7 +1,7 @@
 /* The place dossier: what Canary knows about one point, in three tabs. */
 
 import { lineChart, outlookChart } from "./charts.js";
-import { claimColour, record } from "./record.js";
+import { record } from "./record.js";
 import {
   el, sig, signed, fixed, signedFixed, pText, pEquals, together, thousands, compass, statusIcon, MINUS,
 } from "./util.js";
@@ -126,9 +126,6 @@ function vitalCard(v) {
     lineChart({
       x: v.years,
       y: v.annual_anomaly,
-      fit: [{ x: v.years[0], y: t.line[0] }, { x: v.years[v.years.length - 1], y: t.line[1] }],
-      fitStrong: t.significant,
-      fitColour: claimColour(v, t.slope_per_decade, t.significant),
       zeroLine: true,
       label: `${v.label}, yearly difference from the 1991 to 2020 average, ${v.period[0]} to ${v.period[1]}`,
       rows: (i) => [

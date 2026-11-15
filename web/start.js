@@ -146,17 +146,17 @@ function statsRow(r) {
   const v = r.variable, t = r.trend, d = digits(t.per_decade);
   return el("div", { class: "stats-row" },
     el("div", { class: "stat-cell" },
-      el("span", { class: "stat-k", text: "Rate per decade" }),
+      el("span", { class: "stat-k", text: "Theil-Sen, per decade" }),
       el("span", { class: "stat-v", style: `color:${claimColour(v, t.per_decade, r.significant)}` }, signedFix(t.per_decade, d), el("small", { text: ` ${v.unit}` })),
       rangeBar(v, t.per_decade, t.range_per_decade, r.significant, true),
       el("span", { class: "stat-n", text: `95%: ${signedFix(t.range_per_decade[0], d)} to ${signedFix(t.range_per_decade[1], d)}` })),
     el("div", { class: "stat-cell" },
-      el("span", { class: "stat-k", text: `Change since ${r.period[0]}` }),
+      el("span", { class: "stat-k", text: `Δ ${r.period[0]}–${r.period[1]}` }),
       el("span", { class: "stat-v", style: `color:${claimColour(v, t.total_change, r.significant)}` }, signedFix(t.total_change, digits(t.total_change)),
         el("small", { text: ` ${v.unit}` })),
-      el("span", { class: "stat-n", text: t.signal_to_noise == null ? "" : `${t.signal_to_noise.toFixed(1)}× normal swing` })),
+      el("span", { class: "stat-n", text: t.signal_to_noise == null ? "" : `S/N ${t.signal_to_noise.toFixed(1)}` })),
     el("div", { class: "stat-cell" },
-      el("span", { class: "stat-k", text: "Evidence" }),
+      el("span", { class: "stat-k", text: "Mann-Kendall" }),
       el("span", { class: "stat-v" }, el("span", { class: `tag ${r.significant ? "is-yes" : "is-no"}` }, el("i"), r.significant ? "Significant" : "Could be chance")),
       evidenceBar(v, r.tests.mann_kendall.p, r.significant, t.per_decade, true),
       el("span", { class: "stat-n", text: pEq(r.tests.mann_kendall.p) })));
@@ -181,62 +181,26 @@ function recordOf(r, size = "glyph") {
 }
 
 function comparisonLine(a, b) {
-  const dir = (r) => (r.trend.direction === "rising" ? "rising" : "falling");
+  const u = a.variable.unit, rate = (r) => `${signedFix(r.trend.per_decade, digits(r.trend.per_decade))}`;
   const both = a.significant && b.significant;
-  let text;
-  if (both && dir(a) !== dir(b)) {
-    text = `Opposite trends. ${a.variable.label} is ${dir(a)} in ${nm(a)} and ${dir(b)} in ${nm(b)}, and both `
-      + "are significant. The same variable can move in opposite directions in two places, sometimes for the same underlying reason.";
-  } else if (both) {
-    const ratio = Math.abs(a.trend.per_decade) / Math.abs(b.trend.per_decade || 1);
-    const faster = ratio >= 1 ? a : b;
-    text = `Same direction. Both are ${dir(a)} and significant; ${nm(faster)} is changing `
-      + `${sig(Math.max(ratio, 1 / ratio))} times as fast.`;
-  } else if (a.significant !== b.significant) {
-    const yes = a.significant ? a : b, no = a.significant ? b : a;
-    text = `Only ${nm(yes)} shows a significant trend. In ${nm(no)} the change could be chance.`;
-  } else {
-    text = "Neither region shows a significant trend over this period.";
-  }
-  return el("p", { class: "comparison", text });
+  const lead = both ? (Math.sign(a.trend.per_decade) !== Math.sign(b.trend.per_decade) ? "Opposite significant trends" : "Both significant")
+    : a.significant || b.significant ? `Significant in ${(a.significant ? a : b).region.name} only` : "Neither significant";
+  return el("p", { class: "comparison" }, el("strong", { text: `${lead}. ` }),
+    `${a.region.name} ${rate(a)}, ${b.region.name} ${rate(b)} ${u} per decade.`);
 }
 
 /* ---------- the series figure: chart or table ---------- */
 
-const trendKey = (r) => {
-  const d = digits(r.trend.per_decade);
-  return `${signedFix(r.trend.per_decade, d)} ${r.variable.unit} per decade (95% range ${signedFix(r.trend.range_per_decade[0], d)} to `
-    + `${signedFix(r.trend.range_per_decade[1], d)}${r.significant ? "" : ", not significant"})`;
-};
-
 function seriesChart(a, b) {
+  // Two regions on one axis: each as its anomaly against its own 1991-2020 base.
   const v = a.variable;
-  if (!b) {
-    return [
-      el("div", { class: "legend" },
-        el("span", {}, el("i"), "Yearly average"),
-        el("span", {}, el("i", { class: "trend" }), `Trend: ${trendKey(a)}`)),
-      lineChart({
-        x: a.years, y: a.values, width: 440, height: 250,
-        fit: [{ x: a.period[0], y: a.trend.line[0] }, { x: a.period[1], y: a.trend.line[1] }],
-        fitStrong: a.significant, fitColour: claimColour(v, a.trend.per_decade, a.significant),
-        label: `${v.label} in ${nm(a)}, yearly averages ${a.period[0]} to ${a.period[1]}, with trend line`,
-        rows: (i) => [String(a.years[i]), `${fixed(a.values[i], v.decimals)} ${v.unit}`,
-          `${signedFix(a.values[i] - a.normal, v.decimals)} against the 1991–2020 average`],
-      }),
-    ];
-  }
-  const prep = (r) => ({
-    name: r.region.name, x: r.years, y: r.values.map((val) => (val == null ? null : val - r.normal)),
-    fit: [{ x: r.period[0], y: r.trend.line[0] - r.normal }, { x: r.period[1], y: r.trend.line[1] - r.normal }],
-    strong: r.significant,
-  });
+  const prep = (r) => ({ name: r.region.name, x: r.years, y: r.values.map((val) => (val == null ? null : val - r.normal)) });
   return [
     el("div", { class: "legend" },
-      el("span", {}, el("i", { class: "key series-1" }), `${a.region.name}: ${trendKey(a)}`),
-      el("span", {}, el("i", { class: "key series-2" }), `${b.region.name}: ${trendKey(b)}`)),
+      el("span", {}, el("i", { class: "key series-1" }), a.region.name),
+      el("span", {}, el("i", { class: "key series-2" }), b.region.name)),
     compareChart({ series: [prep(a), prep(b)], unit: v.unit, decimals: v.decimals, width: 440, height: 250,
-      label: `${v.label}: ${a.region.name} and ${b.region.name}, each as the difference from its own 1991 to 2020 average` }),
+      label: `${v.label} anomaly relative to 1991 to 2020: ${a.region.name} and ${b.region.name}` }),
   ];
 }
 
@@ -438,10 +402,8 @@ async function renderScan(id) {
       state.variable = r.id; frameNext = false; update();
       $("panel").scrollTo({ top: 0, behavior: REDUCED_MOTION ? "auto" : "smooth" });
     }),
-    el("details", { class: "explain" }, el("summary", { text: "How to read this" }),
-      el("p", { text: "Each row is one variable. The dot is its change per decade, measured in units of its own normal "
-        + "year-to-year variability, so that rain and temperature share one axis; the line is the 95% range. A filled, "
-        + "coloured dot passes the significance test after correcting for testing many variables at once." })));
+    el("p", { class: "forest-note", text: "Theil-Sen slope per decade ÷ detrended interannual σ, with 95% interval. "
+      + "Filled: Mann-Kendall significant after Benjamini-Hochberg FDR (q = 0.05)." }));
 }
 
 /* ---------- the globe: countries, selected regions, drawing a box ---------- */

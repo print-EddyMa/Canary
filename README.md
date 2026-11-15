@@ -94,8 +94,9 @@ shape and colour, the place, how long ago, and the full report.
 ### Charts
 
 The main chart is the one climate assessments use: each year's difference from the 1991–2020
-normal as a bar in the variable's colour family, the Theil-Sen trend, and its 95% range drawn as
-a fan around the line, with the rate and the record year labelled on the chart. **Shift** shows
+normal as a bar in the variable's colour family, with the record year labelled. No fitted line is
+drawn over the data: the Theil-Sen slope, its 95% interval, the signal-to-noise ratio and the
+Mann-Kendall result are reported beside the chart. **Shift** shows
 how the distribution of years moved, first fifteen years against the last fifteen. **Every
 variable** is a forest plot: each variable's change per decade in units of its own year-to-year
 variability, with its 95% range, so rain and temperature share one axis. Sources, methods and

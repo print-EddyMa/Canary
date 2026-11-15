@@ -270,7 +270,7 @@ function renderLegend() {
     parts.push(el("h3", {}, l.label, el("small", { text: ` · ${l.unit} per decade, ${l.period[0]}–${l.period[1]}` })),
       el("div", { class: "ramp", style: `background:${gradient(l.stops)}` }),
       ends(`−${sig(l.scale_max)}`, "0", `+${sig(l.scale_max)}`),
-      el("div", { class: "ramp-labels muted" }, el("span", { text: lowWord }), el("span", { text: "faint: could be chance" }), el("span", { text: highWord })));
+      el("div", { class: "ramp-labels muted" }, el("span", { text: lowWord }), el("span", { text: "faint: n.s. (FDR q = 0.05)" }), el("span", { text: highWord })));
   } else if (state.mode === "trends" && o && o.type === "alarm") {
     const ramp = maps.colors.alarm;
     parts.push(el("h3", { text: "Vital signs outside their normal range" }),

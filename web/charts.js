@@ -248,7 +248,7 @@ export function outlookChart({ observed, outlook, unit, decimals, label, monthNa
  */
 export function compareChart({ series, unit, decimals, label, width = 600, height = 250 }) {
   const W = width, H = height, m = { l: 46, r: 14, t: 10, b: 20 };
-  const all = series.flatMap((s) => s.y.filter((v) => v != null).concat(s.fit.map((p) => p.y))).concat([0]);
+  const all = series.flatMap((s) => s.y.filter((v) => v != null)).concat([0]);
   let lo = Math.min(...all), hi = Math.max(...all);
   const pad = (hi - lo || 1) * 0.08;
   lo -= pad; hi += pad;
@@ -276,8 +276,6 @@ export function compareChart({ series, unit, decimals, label, width = 600, heigh
       pen = true;
     });
     root.append(svg("path", { class: `data series-${k + 1}`, d }));
-    root.append(svg("line", { class: `fit-own series-${k + 1}${s.strong ? "" : " weak"}`,
-      x1: sx(s.fit[0].x), y1: sy(s.fit[0].y), x2: sx(s.fit[1].x), y2: sy(s.fit[1].y) }));
   });
   const cross = svg("line", { class: "cross", y1: m.t, y2: H - m.b, visibility: "hidden" });
   root.append(cross);

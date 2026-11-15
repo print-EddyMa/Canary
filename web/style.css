@@ -815,6 +815,7 @@ svg.meter.compact { height: 14px; margin: 4px 0 2px; }
 .forest-rate { font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .forest-rate small { font-weight: 400; color: var(--ink-3); font-size: 11px; }
 details.explain { margin: 8px 14px 4px; font-size: 12.5px; color: var(--ink-3); }
+.forest-note { margin: 8px 14px 4px; font-size: 11.5px; color: var(--ink-3); }
 details.explain summary { cursor: pointer; }
 details.explain p { margin: 6px 0 0; font-size: 12.5px; color: var(--ink-2); }
 
