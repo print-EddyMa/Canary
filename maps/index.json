@@ -1,0 +1,1136 @@
+{
+ "generated": "2026-11-15",
+ "false_discovery_rate": 0.05,
+ "bounds": [
+  -180,
+  -85.051129,
+  180,
+  85.051129
+ ],
+ "colors": {
+  "alarm": [
+   "#4a2116",
+   "#a33a22",
+   "#f0743f",
+   "#ffc1a6"
+  ]
+ },
+ "families": {
+  "thermal": {
+   "name": "Thermal",
+   "a": "cooler",
+   "b": "warmer"
+  },
+  "water": {
+   "name": "Water",
+   "a": "drier",
+   "b": "wetter"
+  },
+  "air": {
+   "name": "Air",
+   "a": "more in the air",
+   "b": "more sun and wind"
+  }
+ },
+ "method": "Calendar-year means per grid cell; Theil-Sen slope; Mann-Kendall test with autocorrelation correction; Benjamini-Hochberg false-discovery control across all cells of each map. Faint cells have a trend that could be chance.",
+ "alarm": {
+  "image": "maps/alarm.png",
+  "scale_max": 6,
+  "percent_any": 79.7,
+  "percent_three_plus": 21.5
+ },
+ "layers": [
+  {
+   "id": "temperature",
+   "label": "Air temperature",
+   "unit": "\u00b0C",
+   "theme": "heat",
+   "vital": true,
+   "definition": "Average air temperature two metres above the ground.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_temperature.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 1.0,
+   "family": "thermal",
+   "up": "b",
+   "stops": [
+    "#89c3fe",
+    "#399cf6",
+    "#2e76ba",
+    "#225382",
+    "#2e3133",
+    "#7c3a31",
+    "#b15246",
+    "#ea6a5b",
+    "#ffa193"
+   ],
+   "percent_significant": 58.9,
+   "percent_rising": 56.5,
+   "percent_falling": 2.4,
+   "percent_emerged": 58.9,
+   "mean_trend_per_decade": 0.17181537034475086,
+   "cells_tested": 207936
+  },
+  {
+   "id": "temperature_max",
+   "label": "Hottest temperature of the year",
+   "unit": "\u00b0C",
+   "theme": "heat",
+   "vital": false,
+   "definition": "The highest air temperature reached during the year.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_temperature_max.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 1.0,
+   "family": "thermal",
+   "up": "b",
+   "stops": [
+    "#89c3fe",
+    "#399cf6",
+    "#2e76ba",
+    "#225382",
+    "#2e3133",
+    "#7c3a31",
+    "#b15246",
+    "#ea6a5b",
+    "#ffa193"
+   ],
+   "percent_significant": 36.4,
+   "percent_rising": 35.6,
+   "percent_falling": 0.8,
+   "percent_emerged": 36.3,
+   "mean_trend_per_decade": 0.17211735491455646,
+   "cells_tested": 207936
+  },
+  {
+   "id": "temperature_min",
+   "label": "Coldest temperature of the year",
+   "unit": "\u00b0C",
+   "theme": "heat",
+   "vital": false,
+   "definition": "The lowest air temperature reached during the year.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_temperature_min.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 2,
+   "family": "thermal",
+   "up": "b",
+   "stops": [
+    "#89c3fe",
+    "#399cf6",
+    "#2e76ba",
+    "#225382",
+    "#2e3133",
+    "#7c3a31",
+    "#b15246",
+    "#ea6a5b",
+    "#ffa193"
+   ],
+   "percent_significant": 30.0,
+   "percent_rising": 27.6,
+   "percent_falling": 2.4,
+   "percent_emerged": 30.0,
+   "mean_trend_per_decade": 0.15934768964793466,
+   "cells_tested": 207936
+  },
+  {
+   "id": "ground_temperature",
+   "label": "Ground temperature",
+   "unit": "\u00b0C",
+   "theme": "heat",
+   "vital": false,
+   "definition": "Temperature of the surface itself (soil, rock, water or ice), which is hotter than the air on sunny days.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_ground_temperature.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 1.0,
+   "family": "thermal",
+   "up": "b",
+   "stops": [
+    "#89c3fe",
+    "#399cf6",
+    "#2e76ba",
+    "#225382",
+    "#2e3133",
+    "#7c3a31",
+    "#b15246",
+    "#ea6a5b",
+    "#ffa193"
+   ],
+   "percent_significant": 60.2,
+   "percent_rising": 58.6,
+   "percent_falling": 1.7,
+   "percent_emerged": 60.2,
+   "mean_trend_per_decade": 0.1827891117956475,
+   "cells_tested": 207936
+  },
+  {
+   "id": "frost_days",
+   "label": "Frost days",
+   "unit": "days",
+   "theme": "heat",
+   "vital": false,
+   "definition": "Number of days in the year when the temperature fell below freezing.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_frost_days.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 20,
+   "family": "thermal",
+   "up": "a",
+   "stops": [
+    "#ffa193",
+    "#ea6a5b",
+    "#b15246",
+    "#7c3a31",
+    "#2e3133",
+    "#225382",
+    "#2e76ba",
+    "#399cf6",
+    "#89c3fe"
+   ],
+   "percent_significant": 18.4,
+   "percent_rising": 0.0,
+   "percent_falling": 18.3,
+   "percent_emerged": 18.3,
+   "mean_trend_per_decade": -1.8504948417964442,
+   "cells_tested": 108591
+  },
+  {
+   "id": "cooling_demand",
+   "label": "Cooling demand",
+   "unit": "degree-days",
+   "theme": "heat",
+   "vital": false,
+   "definition": "How much, and for how long, it was warmer than 18.3 \u00b0C: a standard measure of the need for air conditioning.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_cooling_demand.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 200,
+   "family": "thermal",
+   "up": "b",
+   "stops": [
+    "#89c3fe",
+    "#399cf6",
+    "#2e76ba",
+    "#225382",
+    "#2e3133",
+    "#7c3a31",
+    "#b15246",
+    "#ea6a5b",
+    "#ffa193"
+   ],
+   "percent_significant": 67.6,
+   "percent_rising": 67.5,
+   "percent_falling": 0.1,
+   "percent_emerged": 67.1,
+   "mean_trend_per_decade": 54.65021230254169,
+   "cells_tested": 107149
+  },
+  {
+   "id": "heating_demand",
+   "label": "Heating demand",
+   "unit": "degree-days",
+   "theme": "heat",
+   "vital": false,
+   "definition": "How much, and for how long, it was colder than 18.3 \u00b0C: a standard measure of the need for heating.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_heating_demand.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 500,
+   "family": "thermal",
+   "up": "a",
+   "stops": [
+    "#ffa193",
+    "#ea6a5b",
+    "#b15246",
+    "#7c3a31",
+    "#2e3133",
+    "#225382",
+    "#2e76ba",
+    "#399cf6",
+    "#89c3fe"
+   ],
+   "percent_significant": 40.8,
+   "percent_rising": 3.7,
+   "percent_falling": 37.1,
+   "percent_emerged": 40.5,
+   "mean_trend_per_decade": -39.45828604992741,
+   "cells_tested": 155120
+  },
+  {
+   "id": "precipitation",
+   "label": "Precipitation",
+   "unit": "mm/day",
+   "theme": "water",
+   "vital": true,
+   "definition": "Average rain and snowfall per day, corrected against rain gauges.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_precipitation.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.5,
+   "family": "water",
+   "up": "b",
+   "stops": [
+    "#f9aa60",
+    "#cd853e",
+    "#9b6531",
+    "#6c4724",
+    "#2e3133",
+    "#095d5b",
+    "#0a8481",
+    "#07aeaa",
+    "#2dd8d3"
+   ],
+   "percent_significant": 13.4,
+   "percent_rising": 6.7,
+   "percent_falling": 6.8,
+   "percent_emerged": 13.2,
+   "mean_trend_per_decade": -0.022376746732762,
+   "cells_tested": 207936
+  },
+  {
+   "id": "soil_wetness",
+   "label": "Root-zone soil wetness",
+   "unit": "fraction",
+   "theme": "water",
+   "vital": true,
+   "definition": "How full of water the top metre of soil is, where plant roots drink: 0 is completely dry, 1 is saturated.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_soil_wetness.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.05,
+   "family": "water",
+   "up": "b",
+   "stops": [
+    "#f9aa60",
+    "#cd853e",
+    "#9b6531",
+    "#6c4724",
+    "#2e3133",
+    "#095d5b",
+    "#0a8481",
+    "#07aeaa",
+    "#2dd8d3"
+   ],
+   "percent_significant": 7.8,
+   "percent_rising": 4.4,
+   "percent_falling": 3.4,
+   "percent_emerged": 7.7,
+   "mean_trend_per_decade": 0.0010075628530902506,
+   "cells_tested": 58488
+  },
+  {
+   "id": "surface_soil_wetness",
+   "label": "Surface soil wetness",
+   "unit": "fraction",
+   "theme": "water",
+   "vital": false,
+   "definition": "How wet the top few centimetres of soil are: 0 is completely dry, 1 is saturated.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_surface_soil_wetness.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.05,
+   "family": "water",
+   "up": "b",
+   "stops": [
+    "#f9aa60",
+    "#cd853e",
+    "#9b6531",
+    "#6c4724",
+    "#2e3133",
+    "#095d5b",
+    "#0a8481",
+    "#07aeaa",
+    "#2dd8d3"
+   ],
+   "percent_significant": 7.5,
+   "percent_rising": 3.8,
+   "percent_falling": 3.7,
+   "percent_emerged": 7.5,
+   "mean_trend_per_decade": 0.0004924064694707006,
+   "cells_tested": 58340
+  },
+  {
+   "id": "evaporation",
+   "label": "Evaporation from land",
+   "unit": "mm/day",
+   "theme": "water",
+   "vital": true,
+   "definition": "Water returned to the air from soil and plants each day.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_evaporation.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.5,
+   "family": "water",
+   "up": "b",
+   "stops": [
+    "#f9aa60",
+    "#cd853e",
+    "#9b6531",
+    "#6c4724",
+    "#2e3133",
+    "#095d5b",
+    "#0a8481",
+    "#07aeaa",
+    "#2dd8d3"
+   ],
+   "percent_significant": 11.7,
+   "percent_rising": 6.7,
+   "percent_falling": 5.0,
+   "percent_emerged": 11.6,
+   "mean_trend_per_decade": 0.00033436841024416306,
+   "cells_tested": 58876
+  },
+  {
+   "id": "humidity",
+   "label": "Moisture in the air",
+   "unit": "g/kg",
+   "theme": "water",
+   "vital": true,
+   "definition": "Grams of water vapour in each kilogram of air near the ground (specific humidity).",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_humidity.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.5,
+   "family": "water",
+   "up": "b",
+   "stops": [
+    "#f9aa60",
+    "#cd853e",
+    "#9b6531",
+    "#6c4724",
+    "#2e3133",
+    "#095d5b",
+    "#0a8481",
+    "#07aeaa",
+    "#2dd8d3"
+   ],
+   "percent_significant": 60.5,
+   "percent_rising": 58.5,
+   "percent_falling": 2.0,
+   "percent_emerged": 60.5,
+   "mean_trend_per_decade": 0.11891197920436104,
+   "cells_tested": 207936
+  },
+  {
+   "id": "relative_humidity",
+   "label": "Relative humidity",
+   "unit": "%",
+   "theme": "water",
+   "vital": false,
+   "definition": "How close the air is to holding all the water vapour it can at its temperature.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_relative_humidity.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 2,
+   "family": "water",
+   "up": "b",
+   "stops": [
+    "#f9aa60",
+    "#cd853e",
+    "#9b6531",
+    "#6c4724",
+    "#2e3133",
+    "#095d5b",
+    "#0a8481",
+    "#07aeaa",
+    "#2dd8d3"
+   ],
+   "percent_significant": 17.7,
+   "percent_rising": 14.0,
+   "percent_falling": 3.7,
+   "percent_emerged": 17.7,
+   "mean_trend_per_decade": 0.05804431317562704,
+   "cells_tested": 207936
+  },
+  {
+   "id": "water_vapour",
+   "label": "Water vapour overhead",
+   "unit": "kg/m\u00b2",
+   "theme": "water",
+   "vital": false,
+   "definition": "All the water vapour in the column of air above a square metre of ground.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_water_vapour.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 1.0,
+   "family": "water",
+   "up": "b",
+   "stops": [
+    "#f9aa60",
+    "#cd853e",
+    "#9b6531",
+    "#6c4724",
+    "#2e3133",
+    "#095d5b",
+    "#0a8481",
+    "#07aeaa",
+    "#2dd8d3"
+   ],
+   "percent_significant": 54.0,
+   "percent_rising": 52.7,
+   "percent_falling": 1.3,
+   "percent_emerged": 54.0,
+   "mean_trend_per_decade": 0.26365532658005897,
+   "cells_tested": 207936
+  },
+  {
+   "id": "snowfall",
+   "label": "Snowfall on land",
+   "unit": "mm/day",
+   "theme": "ice",
+   "vital": false,
+   "definition": "Average snowfall per day, as the depth of water it would melt to.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_snowfall.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.1,
+   "family": "thermal",
+   "up": "a",
+   "stops": [
+    "#ffa193",
+    "#ea6a5b",
+    "#b15246",
+    "#7c3a31",
+    "#2e3133",
+    "#225382",
+    "#2e76ba",
+    "#399cf6",
+    "#89c3fe"
+   ],
+   "percent_significant": 6.8,
+   "percent_rising": 2.5,
+   "percent_falling": 4.3,
+   "percent_emerged": 6.7,
+   "mean_trend_per_decade": -0.004705019338520479,
+   "cells_tested": 34664
+  },
+  {
+   "id": "snow",
+   "label": "Snow depth",
+   "unit": "cm",
+   "theme": "ice",
+   "vital": true,
+   "definition": "Average depth of snow lying on the ground.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_snow.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 5,
+   "family": "thermal",
+   "up": "a",
+   "stops": [
+    "#ffa193",
+    "#ea6a5b",
+    "#b15246",
+    "#7c3a31",
+    "#2e3133",
+    "#225382",
+    "#2e76ba",
+    "#399cf6",
+    "#89c3fe"
+   ],
+   "percent_significant": 5.5,
+   "percent_rising": 0.6,
+   "percent_falling": 4.8,
+   "percent_emerged": 5.4,
+   "mean_trend_per_decade": -0.30239681556095843,
+   "cells_tested": 33461
+  },
+  {
+   "id": "snow_cover",
+   "label": "Snow cover",
+   "unit": "fraction",
+   "theme": "ice",
+   "vital": false,
+   "definition": "Share of the land covered by snow, averaged over the year.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_snow_cover.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.05,
+   "family": "thermal",
+   "up": "a",
+   "stops": [
+    "#ffa193",
+    "#ea6a5b",
+    "#b15246",
+    "#7c3a31",
+    "#2e3133",
+    "#225382",
+    "#2e76ba",
+    "#399cf6",
+    "#89c3fe"
+   ],
+   "percent_significant": 3.7,
+   "percent_rising": 0.2,
+   "percent_falling": 3.4,
+   "percent_emerged": 3.6,
+   "mean_trend_per_decade": -0.0038623815337773914,
+   "cells_tested": 30770
+  },
+  {
+   "id": "sea_ice",
+   "label": "Sea ice cover",
+   "unit": "fraction",
+   "theme": "ice",
+   "vital": false,
+   "definition": "Share of the sea surface covered by ice, averaged over the year.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_sea_ice.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.1,
+   "family": "thermal",
+   "up": "a",
+   "stops": [
+    "#ffa193",
+    "#ea6a5b",
+    "#b15246",
+    "#7c3a31",
+    "#2e3133",
+    "#225382",
+    "#2e76ba",
+    "#399cf6",
+    "#89c3fe"
+   ],
+   "percent_significant": 21.6,
+   "percent_rising": 4.3,
+   "percent_falling": 17.3,
+   "percent_emerged": 21.0,
+   "mean_trend_per_decade": -0.0025295736552724338,
+   "cells_tested": 40375
+  },
+  {
+   "id": "sunlight",
+   "label": "Sunlight reaching the ground",
+   "unit": "MJ/m\u00b2/day",
+   "theme": "sky",
+   "vital": true,
+   "definition": "Solar energy arriving at the surface each day, after clouds and haze.",
+   "source": "NASA POWER (CERES SYN1deg satellite record)",
+   "grid": {
+    "file": "maps/trend_sunlight.bin",
+    "nlat": 180,
+    "nlon": 360,
+    "lat0": -89.5,
+    "dlat": 1.0,
+    "lon0": -179.5,
+    "dlon": 1.0
+   },
+   "period": [
+    2001,
+    2025
+   ],
+   "scale_max": 0.5,
+   "family": "air",
+   "up": "b",
+   "stops": [
+    "#d1a9ff",
+    "#ac7fdd",
+    "#8261a8",
+    "#5b4475",
+    "#2e3133",
+    "#315c33",
+    "#448448",
+    "#58ae5d",
+    "#7bd77f"
+   ],
+   "percent_significant": 2.6,
+   "percent_rising": 0.6,
+   "percent_falling": 2.0,
+   "percent_emerged": 2.6,
+   "mean_trend_per_decade": 0.021388600554483054,
+   "cells_tested": 64800
+  },
+  {
+   "id": "cloud",
+   "label": "Cloud cover",
+   "unit": "%",
+   "theme": "sky",
+   "vital": true,
+   "definition": "Share of the sky covered by cloud, averaged over the year.",
+   "source": "NASA POWER (CERES SYN1deg satellite record)",
+   "grid": {
+    "file": "maps/trend_cloud.bin",
+    "nlat": 180,
+    "nlon": 360,
+    "lat0": -89.5,
+    "dlat": 1.0,
+    "lon0": -179.5,
+    "dlon": 1.0
+   },
+   "period": [
+    2001,
+    2025
+   ],
+   "scale_max": 10,
+   "family": "air",
+   "up": "a",
+   "stops": [
+    "#7bd77f",
+    "#58ae5d",
+    "#448448",
+    "#315c33",
+    "#2e3133",
+    "#5b4475",
+    "#8261a8",
+    "#ac7fdd",
+    "#d1a9ff"
+   ],
+   "percent_significant": 13.2,
+   "percent_rising": 0.9,
+   "percent_falling": 12.3,
+   "percent_emerged": 13.2,
+   "mean_trend_per_decade": -1.08596434094772,
+   "cells_tested": 64800
+  },
+  {
+   "id": "haze",
+   "label": "Haze (aerosols)",
+   "unit": "optical depth",
+   "theme": "sky",
+   "vital": true,
+   "definition": "How much dust, smoke and pollution is suspended in the air column, measured by how strongly it dims light.",
+   "source": "NASA POWER (CERES SYN1deg satellite record)",
+   "grid": {
+    "file": "maps/trend_haze.bin",
+    "nlat": 180,
+    "nlon": 360,
+    "lat0": -89.5,
+    "dlat": 1.0,
+    "lon0": -179.5,
+    "dlon": 1.0
+   },
+   "period": [
+    2001,
+    2025
+   ],
+   "scale_max": 0.05,
+   "family": "air",
+   "up": "a",
+   "stops": [
+    "#7bd77f",
+    "#58ae5d",
+    "#448448",
+    "#315c33",
+    "#2e3133",
+    "#5b4475",
+    "#8261a8",
+    "#ac7fdd",
+    "#d1a9ff"
+   ],
+   "percent_significant": 7.5,
+   "percent_rising": 3.5,
+   "percent_falling": 4.1,
+   "percent_emerged": 7.5,
+   "mean_trend_per_decade": -0.0003880384960333652,
+   "cells_tested": 59332
+  },
+  {
+   "id": "reflectivity",
+   "label": "Surface reflectivity",
+   "unit": "fraction",
+   "theme": "sky",
+   "vital": false,
+   "definition": "Share of sunlight the surface bounces back (albedo). Snow and ice are bright; forest and open water are dark.",
+   "source": "NASA POWER (CERES SYN1deg satellite record)",
+   "grid": {
+    "file": "maps/trend_reflectivity.bin",
+    "nlat": 180,
+    "nlon": 360,
+    "lat0": -89.5,
+    "dlat": 1.0,
+    "lon0": -179.5,
+    "dlon": 1.0
+   },
+   "period": [
+    2001,
+    2025
+   ],
+   "scale_max": 0.05,
+   "family": "air",
+   "up": "a",
+   "stops": [
+    "#7bd77f",
+    "#58ae5d",
+    "#448448",
+    "#315c33",
+    "#2e3133",
+    "#5b4475",
+    "#8261a8",
+    "#ac7fdd",
+    "#d1a9ff"
+   ],
+   "percent_significant": 0.9,
+   "percent_rising": 0.1,
+   "percent_falling": 0.8,
+   "percent_emerged": 0.9,
+   "mean_trend_per_decade": -0.0023328286499010257,
+   "cells_tested": 54047
+  },
+  {
+   "id": "ozone",
+   "label": "Ozone layer",
+   "unit": "Dobson units",
+   "theme": "sky",
+   "vital": false,
+   "definition": "Total ozone in the column of air overhead, which shields the surface from ultraviolet light.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_ozone.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 5,
+   "family": "air",
+   "up": "a",
+   "stops": [
+    "#7bd77f",
+    "#58ae5d",
+    "#448448",
+    "#315c33",
+    "#2e3133",
+    "#5b4475",
+    "#8261a8",
+    "#ac7fdd",
+    "#d1a9ff"
+   ],
+   "percent_significant": 7.1,
+   "percent_rising": 6.3,
+   "percent_falling": 0.8,
+   "percent_emerged": 7.1,
+   "mean_trend_per_decade": -0.30564153246236003,
+   "cells_tested": 207936
+  },
+  {
+   "id": "wind",
+   "label": "Wind speed",
+   "unit": "m/s",
+   "theme": "wind",
+   "vital": true,
+   "definition": "Average wind speed ten metres above the ground.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_wind.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 0.2,
+   "family": "air",
+   "up": "b",
+   "stops": [
+    "#d1a9ff",
+    "#ac7fdd",
+    "#8261a8",
+    "#5b4475",
+    "#2e3133",
+    "#315c33",
+    "#448448",
+    "#58ae5d",
+    "#7bd77f"
+   ],
+   "percent_significant": 6.4,
+   "percent_rising": 3.3,
+   "percent_falling": 3.1,
+   "percent_emerged": 6.4,
+   "mean_trend_per_decade": 0.013779739710285566,
+   "cells_tested": 207936
+  },
+  {
+   "id": "wind_max",
+   "label": "Strongest wind of the year",
+   "unit": "m/s",
+   "theme": "wind",
+   "vital": false,
+   "definition": "The highest wind speed reached during the year.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_wind_max.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 1.0,
+   "family": "air",
+   "up": "b",
+   "stops": [
+    "#d1a9ff",
+    "#ac7fdd",
+    "#8261a8",
+    "#5b4475",
+    "#2e3133",
+    "#315c33",
+    "#448448",
+    "#58ae5d",
+    "#7bd77f"
+   ],
+   "percent_significant": 0.1,
+   "percent_rising": 0.1,
+   "percent_falling": 0.0,
+   "percent_emerged": 0.1,
+   "mean_trend_per_decade": 0.045006018417199166,
+   "cells_tested": 207936
+  },
+  {
+   "id": "pressure",
+   "label": "Air pressure",
+   "unit": "hPa",
+   "theme": "wind",
+   "vital": false,
+   "definition": "The weight of the air, adjusted to sea level so that places at different heights can be compared.",
+   "source": "NASA POWER (MERRA-2 reanalysis)",
+   "grid": {
+    "file": "maps/trend_pressure.bin",
+    "nlat": 361,
+    "nlon": 576,
+    "lat0": -90.0,
+    "dlat": 0.5,
+    "lon0": -180.0,
+    "dlon": 0.625
+   },
+   "period": [
+    1981,
+    2025
+   ],
+   "scale_max": 1.0,
+   "family": "air",
+   "up": "a",
+   "stops": [
+    "#7bd77f",
+    "#58ae5d",
+    "#448448",
+    "#315c33",
+    "#2e3133",
+    "#5b4475",
+    "#8261a8",
+    "#ac7fdd",
+    "#d1a9ff"
+   ],
+   "percent_significant": 1.1,
+   "percent_rising": 0.9,
+   "percent_falling": 0.2,
+   "percent_emerged": 1.1,
+   "mean_trend_per_decade": -0.003623952308442867,
+   "cells_tested": 207936
+  }
+ ]
+}
