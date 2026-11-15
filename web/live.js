@@ -148,7 +148,7 @@ function rateChart(plumes) {
     const y = m.t + i * row + row / 2;
     running += a.value;
     const g = node("g", { class: "rate-row", tabindex: 0 });
-    g.append(node("text", { x: m.l - 6, y: y + 3.5, class: "tick", "text-anchor": "end" }, `${i + 1}  ${(a.where || "Unknown").slice(0, 15)}`));
+    g.append(node("text", { x: m.l - 6, y: y + 3.5, class: "tick", "text-anchor": "end" }, `${i + 1}  ${(a.where || "Unknown").replace(" of America", "").slice(0, 15)}`));
     g.append(node("title", {}, `${a.where || ""}: ${a.value.toLocaleString()} kg/h${a.uncertainty ? ` ± ${a.uncertainty.toLocaleString()}` : ""}`));
     g.append(node("line", { x1: sx(0), x2: sx(a.value), y1: y, y2: y, class: "rate-stem" }));
     if (a.uncertainty) g.append(node("line", { x1: sx(Math.max(0, a.value - a.uncertainty)), x2: sx(a.value + a.uncertainty), y1: y, y2: y, class: "rate-err" }));
