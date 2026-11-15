@@ -1,0 +1,1075 @@
+<title>Canary Strata</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Layout: one instrument. The app sits on top as it would ship; the system that makes it follows,
+   one rule per row, each with a live specimen made from Canary's own data. */
+:root {
+  color-scheme: light;
+  /* Paper (light) */
+  --bg: #eef0f1;
+  --surface: #ffffff;
+  --surface-2: #f5f6f7;
+  --line: #dde1e4;
+  --line-strong: #aab1b8;
+  --ink: #111418;
+  --ink-2: #3c434b;
+  --ink-3: #646c75;
+  --faint: #a7adb4;
+  /* Canary: look here */
+  --canary: #ffd21f;
+  --canary-ink: #8a6500;
+  --canary-wash: #fff1b3;
+  /* The globe's viewport is space in both themes */
+  --space: #06080b;
+  --space-2: #0c1016;
+  /* Status (always with a shape and a word) */
+  --stable: #1f9d48;
+  --watch: #e8950c;
+  --serious: #e3602f;
+  --critical: #d63a45;
+  /* Families: a pole, neutral, b pole */
+  --thermal-0: #03528e; --thermal-1: #0277cc; --thermal-2: #59a0e7; --thermal-3: #98c9fc; --thermal-4: #eceff1;
+  --thermal-5: #f9afa3; --thermal-6: #df7b6d; --thermal-7: #c34336; --thermal-8: #970b08;
+  --water-0: #754102; --water-1: #a86007; --water-2: #c78d5a; --water-3: #e5bb97; --water-4: #eceff1;
+  --water-5: #8fd3cf; --water-6: #42aeab; --water-7: #088683; --water-8: #065c5a;
+  --air-0: #643290; --air-1: #895ab8; --air-2: #ac89d3; --air-3: #d0b8ee; --air-4: #eceff1;
+  --air-5: #a5d2a5; --air-6: #6dae6f; --air-7: #2f8a38; --air-8: #026117;
+  /* Text-grade pole colours: the step that reads on the surface */
+  --thermal-a: var(--thermal-0); --thermal-b: var(--thermal-8);
+  --water-a: var(--water-0); --water-b: var(--water-8);
+  --air-a: var(--air-0); --air-b: var(--air-8);
+  --shadow: 0 1px 2px rgba(17, 20, 24, 0.08), 0 10px 30px rgba(17, 20, 24, 0.14);
+  --grid-minor: rgba(17, 20, 24, 0.05);
+  --grid-major: rgba(17, 20, 24, 0.11);
+  --speckle: 0;
+  /* Type */
+  --sans: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SF Mono", Menlo, monospace;
+  --r: 2px;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    color-scheme: dark;
+    --bg: #0d0f12; --surface: #15181c; --surface-2: #1c2025; --line: #2a2f35; --line-strong: #474e57;
+    --ink: #ecebe6; --ink-2: #b8bcc1; --ink-3: #858b93; --faint: #555b63;
+    --canary-ink: #ffd21f; --canary-wash: rgba(255, 210, 31, 0.16);
+    --stable: #3fb950; --watch: #f5a524; --serious: #f0743f; --critical: #f0525c;
+    --thermal-0: #89c3fe; --thermal-1: #399cf6; --thermal-2: #2e76ba; --thermal-3: #225382; --thermal-4: #2e3133;
+    --thermal-5: #7c3a31; --thermal-6: #b15246; --thermal-7: #ea6a5b; --thermal-8: #ffa193;
+    --water-0: #f9aa60; --water-1: #cd853e; --water-2: #9b6531; --water-3: #6c4724; --water-4: #2e3133;
+    --water-5: #095d5b; --water-6: #0a8481; --water-7: #07aeaa; --water-8: #2dd8d3;
+    --air-0: #d1a9ff; --air-1: #ac7fdd; --air-2: #8261a8; --air-3: #5b4475; --air-4: #2e3133;
+    --air-5: #315c33; --air-6: #448448; --air-7: #58ae5d; --air-8: #7bd77f;
+    --thermal-a: var(--thermal-1); --thermal-b: var(--thermal-7);
+    --water-a: var(--water-1); --water-b: var(--water-7);
+    --air-a: var(--air-1); --air-b: var(--air-7);
+    --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.55);
+    --grid-minor: rgba(236, 235, 230, 0.04); --grid-major: rgba(236, 235, 230, 0.09);
+    --speckle: 0.035;
+  }
+}
+:root[data-theme="dark"] {
+  color-scheme: dark;
+  --bg: #0d0f12; --surface: #15181c; --surface-2: #1c2025; --line: #2a2f35; --line-strong: #474e57;
+  --ink: #ecebe6; --ink-2: #b8bcc1; --ink-3: #858b93; --faint: #555b63;
+  --canary-ink: #ffd21f; --canary-wash: rgba(255, 210, 31, 0.16);
+  --stable: #3fb950; --watch: #f5a524; --serious: #f0743f; --critical: #f0525c;
+  --thermal-0: #89c3fe; --thermal-1: #399cf6; --thermal-2: #2e76ba; --thermal-3: #225382; --thermal-4: #2e3133;
+  --thermal-5: #7c3a31; --thermal-6: #b15246; --thermal-7: #ea6a5b; --thermal-8: #ffa193;
+  --water-0: #f9aa60; --water-1: #cd853e; --water-2: #9b6531; --water-3: #6c4724; --water-4: #2e3133;
+  --water-5: #095d5b; --water-6: #0a8481; --water-7: #07aeaa; --water-8: #2dd8d3;
+  --air-0: #d1a9ff; --air-1: #ac7fdd; --air-2: #8261a8; --air-3: #5b4475; --air-4: #2e3133;
+  --air-5: #315c33; --air-6: #448448; --air-7: #58ae5d; --air-8: #7bd77f;
+  --thermal-a: var(--thermal-1); --thermal-b: var(--thermal-7);
+  --water-a: var(--water-1); --water-b: var(--water-7);
+  --air-a: var(--air-1); --air-b: var(--air-7);
+  --shadow: 0 1px 2px rgba(0, 0, 0, 0.5), 0 12px 32px rgba(0, 0, 0, 0.55);
+  --grid-minor: rgba(236, 235, 230, 0.04); --grid-major: rgba(236, 235, 230, 0.09);
+  --speckle: 0.035;
+}
+
+* { box-sizing: border-box; }
+body { margin: 0; background: var(--bg); color: var(--ink); font: 15px/1.55 var(--sans); }
+body::before { content: ""; position: fixed; inset: 0 0 auto; height: env(safe-area-inset-top, 0px); z-index: 10; background: var(--bg); }
+.page { max-width: 1240px; margin: 0 auto; padding-block: 28px 80px; padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px)); }
+h1, h2, h3 { margin: 0; font-weight: 600; text-wrap: balance; }
+p { margin: 0; }
+button, select { font: inherit; color: inherit; }
+button { cursor: pointer; }
+:focus-visible { outline: 2px solid var(--canary-ink); outline-offset: 2px; }
+.mono { font-family: var(--mono); }
+.num { font-variant-numeric: tabular-nums; }
+.muted { color: var(--ink-3); }
+.small { font-size: 13px; }
+.grain { position: relative; }
+.grain::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: var(--speckle);
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='180' height='180'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='2' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+
+/* masthead */
+.mast { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 24px; margin-bottom: 22px; }
+.mast-id { display: flex; gap: 14px; align-items: center; }
+.mark { width: 40px; height: 40px; flex: none; }
+.mast h1 { font-size: 30px; line-height: 1.1; letter-spacing: -0.015em; }
+.mast p { color: var(--ink-2); max-width: 62ch; margin-top: 4px; }
+.seg { display: inline-flex; border: 1px solid var(--line-strong); border-radius: var(--r); overflow: hidden; }
+.seg button { padding: 5px 12px; font-size: 13px; background: var(--surface); color: var(--ink-2); border: 0; border-left: 1px solid var(--line-strong); }
+.seg button:first-child { border-left: 0; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--bg); }
+
+/* ---------- the app, as it would ship ---------- */
+.app { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--surface); }
+.app-bar { display: flex; flex-wrap: wrap; align-items: center; gap: 10px 16px; padding: 10px 14px; border-bottom: 1px solid var(--line); background: var(--surface); }
+.app-bar .brand { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 16px; }
+.app-bar .brand svg { width: 24px; height: 24px; }
+.trigger { display: inline-flex; align-items: center; gap: 8px; min-height: 34px; padding: 0 10px; border: 1px solid var(--line-strong); border-radius: var(--r); background: var(--surface); position: relative; }
+.trigger .lab { font-size: 12px; color: var(--ink-3); }
+.trigger select { appearance: none; border: 0; background: transparent; padding: 0 18px 0 0; font-weight: 500; cursor: pointer; max-width: 46vw; }
+.trigger::after { content: ""; position: absolute; right: 10px; top: 50%; width: 6px; height: 6px; border-right: 1.5px solid var(--ink-3); border-bottom: 1.5px solid var(--ink-3); transform: translateY(-70%) rotate(45deg); pointer-events: none; }
+.trigger .glyph { flex: none; }
+.app-bar .years { font-size: 13px; color: var(--ink-3); margin-left: auto; }
+.app-body { display: grid; grid-template-columns: minmax(0, 1fr) 400px; min-height: 560px; }
+.viewport { position: relative; background: radial-gradient(120% 90% at 40% 45%, var(--space-2), var(--space) 70%); overflow: hidden; min-height: 420px; touch-action: none; }
+.viewport::after { content: ""; position: absolute; inset: 0; pointer-events: none; opacity: 0.09; mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+#globe { position: absolute; inset: 0; width: 100%; height: 100%; cursor: grab; }
+#globe:active { cursor: grabbing; }
+.float { position: absolute; z-index: 2; background: #15181c; color: #ecebe6; border: 1px solid #2a2f35; border-radius: var(--r); box-shadow: 0 1px 2px rgba(0,0,0,.5), 0 12px 32px rgba(0,0,0,.55); }
+.map-legend { left: 14px; bottom: 14px; width: min(280px, calc(100% - 28px)); padding: 10px 12px; font-size: 12px; }
+.map-legend h3 { font-size: 12.5px; margin-bottom: 6px; }
+.map-legend .ramp { height: 10px; }
+.map-legend .ends { display: flex; justify-content: space-between; margin-top: 4px; color: #b8bcc1; }
+.map-legend p { color: #858b93; margin-top: 6px; }
+.readout { padding: 6px 9px; font-size: 12px; pointer-events: none; white-space: nowrap; transform: translate(12px, -50%); }
+.readout b { font-weight: 600; }
+.ripple { position: absolute; z-index: 1; width: 12px; height: 12px; margin: -6px 0 0 -6px; border-radius: 50%; border: 1.5px solid var(--canary); pointer-events: none; animation: ripple 1.6s cubic-bezier(.2,.6,.3,1) forwards; }
+.ripple.r2 { animation-delay: .22s; opacity: 0; }
+.ripple.r3 { animation-delay: .44s; opacity: 0; }
+@keyframes ripple { 0% { transform: scale(1); opacity: .95; } 100% { transform: scale(7); opacity: 0; } }
+.pin { position: absolute; z-index: 2; width: 9px; height: 9px; margin: -4.5px 0 0 -4.5px; border-radius: 50%; background: var(--canary); box-shadow: 0 0 0 2px #06080b; pointer-events: none; }
+.hint { position: absolute; right: 14px; top: 12px; z-index: 2; font-size: 12px; color: #858b93; }
+
+.panel { border-left: 1px solid var(--line); padding: 18px 18px 20px; display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.question { font-size: 13px; color: var(--ink-3); }
+.headline { font-size: 23px; line-height: 1.22; letter-spacing: -0.01em; margin-top: 2px; }
+.headline mark { color: inherit; padding: 0 3px; margin: 0 -1px; background: linear-gradient(transparent 55%, var(--canary-wash) 55%); box-shadow: inset 0 -2px 0 var(--canary); white-space: nowrap; }
+.detail { font-size: 13.5px; color: var(--ink-2); }
+.figs { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--line); border-radius: var(--r); }
+.figs > div { padding: 10px 12px; min-width: 0; }
+.figs > div + div { border-left: 1px solid var(--line); }
+.figs > div:nth-child(3) { border-left: 0; }
+.figs > div:nth-child(n+3) { border-top: 1px solid var(--line); }
+.fig-label { font-size: 12px; font-weight: 600; color: var(--ink-2); }
+.fig-value { font-size: 22px; font-weight: 600; line-height: 1.3; letter-spacing: -0.01em; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.fig-value small { font-size: 12px; font-weight: 400; color: var(--ink-3); letter-spacing: 0; }
+.fig-note { font-size: 12px; color: var(--ink-3); }
+.cap { font-size: 12px; color: var(--ink-3); }
+
+/* the record */
+.record svg { display: block; width: 100%; height: auto; overflow: visible; }
+.record .axis { fill: var(--ink-3); font: 10.5px var(--sans); font-variant-numeric: tabular-nums; }
+.ghost { fill: none; stroke: var(--line-strong); stroke-dasharray: 2 2; }
+
+/* meters */
+.meter-row { display: grid; grid-template-columns: 92px minmax(0, 1fr); gap: 4px 12px; align-items: center; font-size: 12.5px; }
+.meter-row svg { display: block; width: 100%; height: 22px; overflow: visible; }
+.meter-row .t { fill: var(--ink-3); font: 10px var(--sans); }
+
+/* table */
+table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+th { text-align: left; font-size: 12px; font-weight: 600; color: var(--ink-2); padding: 7px 10px; border-bottom: 1px solid var(--line); background: var(--surface-2); white-space: nowrap; }
+td { padding: 6px 10px; border-bottom: 1px solid var(--line); vertical-align: middle; }
+tr:last-child td { border-bottom: 0; }
+td.n, th.n { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.unit { font-size: 11.5px; color: var(--ink-3); }
+.tag { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; white-space: nowrap; }
+.tag i { width: 8px; height: 8px; border-radius: 50%; border: 1.5px solid currentColor; }
+.tag.yes i { background: currentColor; }
+.tag.no { color: var(--ink-3); }
+.scroll { overflow-x: auto; }
+.scroll table { min-width: 560px; }
+
+/* ---------- the system ---------- */
+.rules { margin-top: 56px; display: grid; gap: 0; border-top: 1px solid var(--line); }
+.rule { display: grid; grid-template-columns: minmax(0, 330px) minmax(0, 1fr); gap: 20px 48px; padding: 36px 0; border-bottom: 1px solid var(--line); }
+.rule-text h2 { font-size: 21px; letter-spacing: -0.01em; }
+.rule-text .n { font-family: var(--mono); font-size: 12px; color: var(--ink-3); display: block; margin-bottom: 6px; }
+.rule-text p { color: var(--ink-2); margin-top: 8px; max-width: 46ch; }
+.rule-text ul { margin: 10px 0 0; padding-left: 18px; color: var(--ink-2); font-size: 14px; }
+.rule-text li + li { margin-top: 3px; }
+.spec { min-width: 0; display: grid; gap: 14px; align-content: start; }
+.card { background: var(--surface); border: 1px solid var(--line); border-radius: var(--r); padding: 14px 16px; min-width: 0; }
+.card h3 { font-size: 13px; color: var(--ink-2); margin-bottom: 8px; }
+.pair { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.sizes { display: grid; gap: 14px; }
+.size-row { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 12px; align-items: center; }
+.size-row .k { font-size: 12px; color: var(--ink-3); }
+.fam { display: grid; grid-template-columns: minmax(0, 1fr); gap: 8px; }
+.fam-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 4px 12px; align-items: baseline; }
+.fam-head strong { font-size: 15px; }
+.ramp-row { display: grid; grid-template-columns: repeat(9, 1fr); height: 26px; border-radius: var(--r); overflow: hidden; }
+.ramp-ends { display: flex; justify-content: space-between; font-size: 12.5px; }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chip { font-size: 12px; padding: 1px 7px; border: 1px solid var(--line); border-radius: var(--r); color: var(--ink-2); white-space: nowrap; }
+.swatches { display: grid; grid-template-columns: repeat(auto-fill, minmax(150px, 1fr)); gap: 10px; }
+.sw { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--surface); font-size: 12px; }
+.sw .c { height: 44px; }
+.sw div:last-child { padding: 6px 8px; }
+.sw .mono { color: var(--ink-3); font-size: 11.5px; }
+.status { display: flex; flex-wrap: wrap; gap: 10px 22px; font-size: 13.5px; }
+.status span { display: inline-flex; align-items: center; gap: 7px; }
+.status svg { width: 14px; height: 14px; }
+
+.textures { display: grid; grid-template-columns: repeat(auto-fill, minmax(230px, 1fr)); gap: 12px; }
+.tex { border: 1px solid var(--line); border-radius: var(--r); overflow: hidden; background: var(--surface); display: flex; flex-direction: column; }
+.tex .art { height: 150px; position: relative; overflow: hidden; }
+.tex .txt { padding: 10px 12px 12px; font-size: 13px; color: var(--ink-2); }
+.tex .txt strong { display: block; color: var(--ink); font-size: 14px; }
+.tex .job { display: block; margin-top: 4px; font-size: 12px; color: var(--ink-3); }
+.tex.no { opacity: 0.75; }
+.tex.no .art { display: grid; place-items: center; color: var(--ink-3); font-size: 13px; background: repeating-linear-gradient(135deg, var(--surface-2) 0 6px, var(--surface) 6px 12px); }
+.blueprint { background-color: var(--surface);
+  background-image: linear-gradient(var(--grid-major) 1px, transparent 1px), linear-gradient(90deg, var(--grid-major) 1px, transparent 1px),
+    linear-gradient(var(--grid-minor) 1px, transparent 1px), linear-gradient(90deg, var(--grid-minor) 1px, transparent 1px);
+  background-size: 40px 40px, 40px 40px, 8px 8px, 8px 8px; background-position: -1px -1px; }
+.graphite { background: #15181c; }
+.graphite::after { opacity: 0.05; }
+.paper { background: #ffffff; border-bottom: 1px solid var(--line); }
+.space-art { background: radial-gradient(80% 90% at 35% 40%, #121924, #06080b 72%); }
+.space-art::before { content: ""; position: absolute; left: 50%; top: 58%; width: 190px; height: 190px; margin: -95px; border-radius: 50%;
+  background: radial-gradient(circle at 38% 35%, #2b3b4c, #0e151d 70%); box-shadow: 0 0 0 1px rgba(137,195,254,.25), 0 0 28px 6px rgba(137,195,254,.16); }
+.space-art::after { content: ""; position: absolute; inset: 0; opacity: .12; mix-blend-mode: screen;
+  background-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' width='200' height='200'><filter id='n'><feTurbulence type='fractalNoise' baseFrequency='.8' numOctaves='3' stitchTiles='stitch'/><feColorMatrix values='0 0 0 0 1 0 0 0 0 1 0 0 0 0 1 0 0 0 1 0'/></filter><rect width='100%' height='100%' filter='url(%23n)'/></svg>"); }
+.ripple-art { background: var(--space); cursor: crosshair; }
+.ripple-art span.lbl { position: absolute; left: 10px; top: 8px; font-size: 12px; color: #858b93; }
+.shadow-art { background: radial-gradient(70% 90% at 30% 50%, #1b2b3b, #06080b 75%); }
+.shadow-art .float { left: 50%; top: 50%; transform: translate(-50%, -50%); padding: 10px 12px; font-size: 12px; width: 170px; }
+#contours { width: 100%; height: 100%; display: block; }
+
+.moves { display: grid; gap: 0; border: 1px solid var(--line); border-radius: var(--r); background: var(--surface); }
+.moves > div { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 4px 16px; padding: 10px 14px; font-size: 14px; color: var(--ink-2); }
+.moves > div + div { border-top: 1px solid var(--line); }
+.moves strong { color: var(--ink); font-weight: 600; }
+.btn { display: inline-flex; align-items: center; gap: 6px; padding: 5px 11px; font-size: 13px; font-weight: 500; background: var(--surface); border: 1px solid var(--line-strong); border-radius: var(--r); }
+.btn:hover { background: var(--surface-2); }
+
+.tokens td:first-child { font-family: var(--mono); font-size: 12.5px; white-space: nowrap; }
+.tokens .sq { display: inline-block; width: 14px; height: 14px; vertical-align: -2px; margin-right: 6px; border: 1px solid rgba(127,127,127,.35); }
+.tokens td { font-size: 13px; color: var(--ink-2); }
+pre { margin: 0; max-height: 260px; overflow: auto; padding: 12px 14px; font: 12px/1.6 var(--mono); color: var(--ink-2); background: var(--surface-2); border: 1px solid var(--line); border-radius: var(--r); }
+.foot { margin-top: 40px; font-size: 12.5px; color: var(--ink-3); max-width: 90ch; }
+
+@media (max-width: 960px) {
+  .app-body { grid-template-columns: minmax(0, 1fr); }
+  .panel { border-left: 0; border-top: 1px solid var(--line); }
+  .viewport { min-height: 380px; }
+  .rule { grid-template-columns: minmax(0, 1fr); gap: 16px; padding: 28px 0; }
+}
+@media (max-width: 560px) {
+  .pair { grid-template-columns: minmax(0, 1fr); }
+  .map-legend { left: 8px; bottom: 8px; width: calc(100% - 16px); padding: 8px 10px; }
+  .map-legend p, .hint { display: none; }
+  .mast-id { align-items: flex-start; }
+  .size-row, .moves > div { grid-template-columns: minmax(0, 1fr); }
+  .headline { font-size: 20px; }
+  .app-bar .years { margin-left: 0; }
+}
+@media (prefers-reduced-motion: reduce) { .ripple { animation-duration: .01s; } }
+</style>
+
+<div class="page">
+  <header class="mast">
+    <div class="mast-id">
+      <svg class="mark" viewBox="0 0 32 32" aria-hidden="true">
+        <rect width="32" height="32" rx="6" fill="#14181f"/>
+        <g id="mark-strip"></g>
+        <path d="M7.5 19.8l5.1-4.6a6.6 6.6 0 0 1 9.8-6.6l4.6-.2-3.3 3.5a6.6 6.6 0 0 1-10.1 8.7l-3.6 1z" fill="#ffd21f"/>
+        <circle cx="20.2" cy="10.5" r="1" fill="#14181f"/>
+      </svg>
+      <div>
+        <h1>Canary Strata</h1>
+        <p>A colour system for Canary. One object everywhere, three colour families that each mean one thing, and a rule that colour has to be earned by the evidence.</p>
+      </div>
+    </div>
+    <div class="seg" role="group" aria-label="Theme">
+      <button type="button" data-theme-set="system" aria-pressed="true">System</button>
+      <button type="button" data-theme-set="light" aria-pressed="false">Light</button>
+      <button type="button" data-theme-set="dark" aria-pressed="false">Dark</button>
+    </div>
+  </header>
+
+  <!-- The app as it would ship -->
+  <section class="app" aria-label="Canary in the Strata theme">
+    <div class="app-bar grain">
+      <span class="brand"><svg viewBox="0 0 32 32" aria-hidden="true"><rect width="32" height="32" rx="6" fill="#14181f"/><path d="M5 25.5 27 19.5" stroke="#e8eaed" stroke-width="1.8" stroke-linecap="round"/><path d="M7.5 19.8l5.1-4.6a6.6 6.6 0 0 1 9.8-6.6l4.6-.2-3.3 3.5a6.6 6.6 0 0 1-10.1 8.7l-3.6 1z" fill="#ffd21f"/><circle cx="20.2" cy="10.5" r="1" fill="#14181f"/></svg>Canary</span>
+      <label class="trigger"><span class="lab">Investigate</span><span class="glyph" id="trigger-glyph"></span>
+        <select id="example" aria-label="Example investigation"></select></label>
+      <span class="years num" id="years"></span>
+    </div>
+    <div class="app-body">
+      <div class="viewport" id="viewport">
+        <canvas id="globe" aria-label="Globe showing the trend map. Drag to turn it; click to read a cell."></canvas>
+        <span class="hint">Drag to turn · click to read a cell</span>
+        <div class="float map-legend" id="map-legend"></div>
+      </div>
+      <div class="panel" id="panel"></div>
+    </div>
+  </section>
+
+  <div class="rules">
+    <section class="rule">
+      <div class="rule-text">
+        <span class="n">1</span>
+        <h2>One object: the record</h2>
+        <p>Every answer Canary gives is one variable in one region, year by year. It is always drawn the same way: a strip with one cell per year, coloured by how far that year sat from normal. The globe is the same object spread over space.</p>
+        <ul>
+          <li>Full size in the verdict, with the trend line through it.</li>
+          <li>Row size in every table and in a place's vital signs.</li>
+          <li>Glyph size in the variable picker and on map pins.</li>
+        </ul>
+      </div>
+      <div class="spec"><div class="card sizes" id="sizes"></div></div>
+    </section>
+
+    <section class="rule">
+      <div class="rule-text">
+        <span class="n">2</span>
+        <h2>Colour means one thing</h2>
+        <p>Three families, one per kind of variable. Each has two poles and a neutral grey middle, so "no change" never looks like a result. Within a family the poles keep their meaning everywhere: on the globe, in the record, in the numbers.</p>
+        <p>Blue to red and brown to teal follow the conventions of climate assessment maps. Red always points the way a warming world pushes, so less sea ice is red and more frost days are blue.</p>
+      </div>
+      <div class="spec" id="families"></div>
+    </section>
+
+    <section class="rule">
+      <div class="rule-text">
+        <span class="n">3</span>
+        <h2>Colour is earned</h2>
+        <p>A claim gets its family colour only when the test says it is unlikely to be chance. Otherwise it stays graphite: the number, the trend line, the map cell. The record itself always shows its colours, because those are measurements, not claims.</p>
+      </div>
+      <div class="spec"><div class="pair" id="earned"></div></div>
+    </section>
+
+    <section class="rule">
+      <div class="rule-text">
+        <span class="n">4</span>
+        <h2>Progress means more evidence</h2>
+        <p>Bars in Canary fill with evidence, never with decoration. The evidence bar runs from "could easily be chance" to "very unlikely to be chance", with the 5% line marked. When a trend is not settled, the record shows dashed cells for the years still needed at the current rate.</p>
+      </div>
+      <div class="spec"><div class="card" id="progress"></div></div>
+    </section>
+
+    <section class="rule">
+      <div class="rule-text">
+        <span class="n">5</span>
+        <h2>Numbers carry their range</h2>
+        <p>A rate is never shown alone. Under it sits its 95% range on an axis with zero marked. If the range crosses zero the number cannot be called, and you can see why without reading a p-value.</p>
+      </div>
+      <div class="spec"><div class="card" id="ranges"></div></div>
+    </section>
+
+    <section class="rule">
+      <div class="rule-text">
+        <span class="n">6</span>
+        <h2>Yellow means look here</h2>
+        <p>Canary yellow is never data. It marks the one thing to look at: the region you chose, the place you clicked, the finding in the headline, the keyboard focus. Status has its own colours, and each always comes with a shape and a word.</p>
+      </div>
+      <div class="spec">
+        <div class="card">
+          <h3>Look here</h3>
+          <div class="swatches" id="canary-uses"></div>
+        </div>
+        <div class="card">
+          <h3>Status: conditions and events</h3>
+          <div class="status" id="status"></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="rule">
+      <div class="rule-text">
+        <span class="n">7</span>
+        <h2>Surfaces and textures</h2>
+        <p>Each texture has one job and appears only where that job is. Nothing is decoration.</p>
+      </div>
+      <div class="spec">
+        <div class="textures">
+          <div class="tex"><div class="art graphite grain"></div><div class="txt"><strong>Speckled graphite</strong>The dark theme's frame: header and panel edge, a 3–5% speckle.<span class="job">Job: the instrument body</span></div></div>
+          <div class="tex"><div class="art paper"></div><div class="txt"><strong>Paper</strong>The light theme. Cool white, hairline rules, square corners.<span class="job">Job: reading and printing</span></div></div>
+          <div class="tex"><div class="art space-art"></div><div class="txt"><strong>Grainy gradient</strong>Only the space behind the globe and its atmosphere. The grain stops banding in dark gradients.<span class="job">Job: the planet's viewport</span></div></div>
+          <div class="tex"><div class="art blueprint" id="blueprint"></div><div class="txt"><strong>Blueprint grid</strong>Behind every chart and the terrain profile: a fine grid with a stronger line every fifth.<span class="job">Job: this was measured</span></div></div>
+          <div class="tex"><div class="art"><canvas id="contours" aria-label="Contour lines of Mount Fuji from real elevation data"></canvas></div><div class="txt"><strong>Contour lines</strong>A place's own terrain, drawn behind its name in the Place panel. Here, Mount Fuji every 250 m.<span class="job">Job: a place on the ground</span></div></div>
+          <div class="tex"><div class="art ripple-art" id="ripple-art"><span class="lbl">Click here</span></div><div class="txt"><strong>Water ripple</strong>Where you click the globe, and where a raindrop's route reaches the sea.<span class="job">Job: you asked here</span></div></div>
+          <div class="tex"><div class="art shadow-art"><div class="float"><b>Soft shadow</b><br><span style="color:#b8bcc1">Only on things that float over the globe.</span></div></div><div class="txt"><strong>Soft shadow</strong>Legends, popovers and the walkthrough bar. Cards on the page use a hairline instead.<span class="job">Job: this floats</span></div></div>
+          <div class="tex no"><div class="art">Left out</div><div class="txt"><strong>Fluted glass</strong>Panels over a moving globe must stay readable; glass trades legibility for a look.<span class="job">Not used</span></div></div>
+          <div class="tex no"><div class="art">Left out</div><div class="txt"><strong>Grass texture</strong>It carries no data. Land on the globe is shown by its own measurements.<span class="job">Not used</span></div></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="rule">
+      <div class="rule-text">
+        <span class="n">8</span>
+        <h2>What moves</h2>
+        <p>The interface moves only when the world does, or when you asked something. Everything stops for reduced motion.</p>
+      </div>
+      <div class="spec">
+        <div class="moves">
+          <div><strong>The globe turns</strong><span>Slowly, until you touch it. The night side is where it is night now.</span></div>
+          <div><strong>Wind</strong><span>Particles follow the latest NASA GEOS analysis.</span></div>
+          <div><strong>The record fills</strong><span>Year by year while the data loads, so progress is the record itself. <button class="btn" type="button" id="replay">Replay</button></span></div>
+          <div><strong>Ripples</strong><span>Where you clicked, and where water reaches the sea.</span></div>
+          <div><strong>Live events</strong><span>A slow pulse on events that are active now. Past events are still.</span></div>
+        </div>
+      </div>
+    </section>
+
+    <section class="rule">
+      <div class="rule-text">
+        <span class="n">9</span>
+        <h2>Tokens</h2>
+        <p>Named by job, not by colour. The table shows the current theme; the CSS has both.</p>
+        <p><button class="btn" type="button" id="copy-css">Copy the CSS</button> <span class="small muted" id="copy-state" role="status"></span></p>
+      </div>
+      <div class="spec">
+        <div class="card" style="padding:0"><div class="scroll"><table class="tokens" id="tokens"></table></div></div>
+        <pre id="css-out"></pre>
+      </div>
+    </section>
+  </div>
+
+  <p class="foot">All figures are real: NASA POWER yearly records (MERRA-2 reanalysis from 1981; CERES satellite record from 2001 for haze), analysed by Canary.
+    Significance: Mann-Kendall test corrected for memory in the data; the table and map use false-discovery control across many tests.
+    Elevation: Terrain Tiles (NASA SRTM and others). Outlines: Natural Earth. Families checked for colour-blind separation between matched steps.</p>
+</div>
+
+<script>
+(() => {
+  const $ = (id) => document.getElementById(id);
+  const NS = "http://www.w3.org/2000/svg";
+  const REDUCED = matchMedia("(prefers-reduced-motion: reduce)").matches;
+  const MINUS = "−";
+  const css = (name) => getComputedStyle(document.documentElement).getPropertyValue(name).trim();
+  const el = (tag, attrs = {}, ...kids) => {
+    const n = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs)) {
+      if (k === "text") n.textContent = v; else if (k === "html") n.innerHTML = v;
+      else if (k.startsWith("on")) n.addEventListener(k.slice(2), v); else if (v != null) n.setAttribute(k, v);
+    }
+    for (const k of kids.flat()) if (k != null) n.append(k);
+    return n;
+  };
+  const s = (tag, attrs = {}) => {
+    const n = document.createElementNS(NS, tag);
+    for (const [k, v] of Object.entries(attrs)) n.setAttribute(k, v);
+    return n;
+  };
+  const signed = (x, d) => (x > 0 ? "+" : x < 0 ? MINUS : "") + Math.abs(x).toFixed(d);
+  const digits = (x) => (x === 0 ? 0 : Math.max(0, Math.min(4, 1 - Math.floor(Math.log10(Math.abs(x))))));
+  const pText = (p) => (p < 0.001 ? "p < 0.001" : `p = ${p.toFixed(3)}`);
+  const lc = (name) => name.replace(/^The /, "the ");
+
+  const FAM = {
+    thermal: { name: "Thermal", a: "cooler", b: "warmer", about: "Heat, snow and ice. Red is the way a warming world pushes." },
+    water: { name: "Water", a: "drier", b: "wetter", about: "Rain, soil moisture, humidity, evaporation." },
+    air: { name: "Air", a: "more in the air", b: "more sun and wind", about: "Haze, cloud, ozone and pressure on one side; sunlight and wind on the other." },
+  };
+  const MEMBERS = {
+    thermal: ["Air temperature ↑ red", "Hottest day ↑ red", "Frost days ↑ blue", "Heating demand ↑ blue", "Sea ice ↑ blue", "Snow depth ↑ blue"],
+    water: ["Precipitation ↑ teal", "Soil wetness ↑ teal", "Moisture in the air ↑ teal", "Evaporation ↑ teal"],
+    air: ["Haze ↑ violet", "Cloud cover ↑ violet", "Ozone ↑ violet", "Air pressure ↑ violet", "Sunlight ↑ green", "Wind speed ↑ green"],
+  };
+
+  /* ---------- colour ---------- */
+  const hex = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16));
+  let RAMPS = {};
+  function readRamps() {
+    for (const f of Object.keys(FAM)) RAMPS[f] = Array.from({ length: 9 }, (_, i) => hex(css(`--${f}-${i}`)));
+  }
+  /** Colour for t in [-1, 1], where +1 is the b pole. */
+  function rampRGB(family, t) {
+    const r = RAMPS[family];
+    const x = (Math.max(-1, Math.min(1, t)) + 1) * 4;
+    const i = Math.min(7, Math.floor(x)), f = x - i;
+    return [0, 1, 2].map((k) => Math.round(r[i][k] + (r[i + 1][k] - r[i][k]) * f));
+  }
+  const rgb = (c) => `rgb(${c[0]},${c[1]},${c[2]})`;
+  // The globe sits in space in both themes, so it always uses the dark steps.
+  const DARK = {
+    thermal: ["#89c3fe", "#399cf6", "#2e76ba", "#225382", "#2e3133", "#7c3a31", "#b15246", "#ea6a5b", "#ffa193"],
+    water: ["#f9aa60", "#cd853e", "#9b6531", "#6c4724", "#2e3133", "#095d5b", "#0a8481", "#07aeaa", "#2dd8d3"],
+    air: ["#d1a9ff", "#ac7fdd", "#8261a8", "#5b4475", "#2e3133", "#315c33", "#448448", "#58ae5d", "#7bd77f"],
+  };
+  const DARK_RGB = Object.fromEntries(Object.entries(DARK).map(([k, v]) => [k, v.map(hex)]));
+  function darkRGB(family, t) {
+    const r = DARK_RGB[family];
+    const x = (Math.max(-1, Math.min(1, t)) + 1) * 4;
+    const i = Math.min(7, Math.floor(x)), f = x - i;
+    return [0, 1, 2].map((k) => Math.round(r[i][k] + (r[i + 1][k] - r[i][k]) * f));
+  }
+  /** +1 when an increase in this variable points to the b pole. */
+  const dirOf = (rec) => (rec.up === "b" ? 1 : -1);
+  /** The text colour of the pole a change points to, if the change has been earned. */
+  function claimColour(rec, value, earned) {
+    if (!earned || !value) return "var(--ink-3)";
+    return `var(--${rec.family}-${value * dirOf(rec) > 0 ? "b" : "a"})`;
+  }
+
+  /* ---------- the record ---------- */
+  function anomalies(rec) {
+    const a = rec.values.map((v) => (v == null ? null : v - rec.normal));
+    const ok = a.filter((v) => v != null);
+    const mean = ok.reduce((x, y) => x + y, 0) / ok.length;
+    const sd = Math.sqrt(ok.reduce((x, y) => x + (y - mean) ** 2, 0) / ok.length) || 1;
+    return { a, scale: 2.4 * sd };
+  }
+
+  /** The record strip. size: "full" | "row" | "glyph". */
+  function record(rec, { size = "full", ghosts = true, fill = rec.years.length, line = true } = {}) {
+    const { a, scale } = anomalies(rec);
+    const n = rec.years.length;
+    if (size === "glyph") {
+      // Nine cells: five-year means, so the glyph keeps the shape of the record.
+      const bins = 9, svg = s("svg", { viewBox: `0 0 ${bins * 4} 12`, width: bins * 4, height: 12, "aria-hidden": "true" });
+      for (let b = 0; b < bins; b++) {
+        const part = a.slice(Math.floor(b * n / bins), Math.floor((b + 1) * n / bins)).filter((v) => v != null);
+        const m = part.reduce((x, y) => x + y, 0) / (part.length || 1);
+        svg.append(s("rect", { x: b * 4, y: 0, width: 3.4, height: 12, fill: rgb(rampRGB(rec.family, (m / scale) * 1.4 * dirOf(rec))) }));
+      }
+      return svg;
+    }
+    const more = ghosts && rec.more ? Math.min(rec.more, 24) : 0;
+    const cells = n + more;
+    const W = size === "row" ? 132 : 600, H = size === "row" ? 14 : 92, axis = size === "row" ? 0 : 18;
+    const cw = W / Math.max(cells, n);
+    const svg = s("svg", { viewBox: `0 0 ${W} ${H + axis}`, role: "img",
+      "aria-label": `${rec.label}, ${lc(rec.region)}, ${rec.years[0]} to ${rec.years[n - 1]}: one cell per year, coloured by the difference from normal` });
+    for (let i = 0; i < n; i++) {
+      const v = a[i];
+      const c = v == null || i >= fill ? null : rgb(rampRGB(rec.family, (v / scale) * dirOf(rec)));
+      svg.append(s("rect", { x: (i * cw).toFixed(2), y: 0, width: (cw + 0.4).toFixed(2), height: H, fill: c || "transparent" }));
+    }
+    for (let j = 0; j < more; j++) {
+      svg.append(s("rect", { class: "ghost", x: ((n + j) * cw + 1).toFixed(2), y: 1, width: (cw - 2).toFixed(2), height: H - 2 }));
+    }
+    if (line && size === "full") {
+      // The trend, drawn as height within the strip: up means a higher value.
+      const vals = rec.values.filter((v) => v != null);
+      const lo = Math.min(...vals), hi = Math.max(...vals);
+      const y = (v) => H - 8 - ((v - lo) / (hi - lo || 1)) * (H - 16);
+      svg.append(s("line", { x1: cw / 2, x2: (n - 0.5) * cw, y1: y(rec.line[0]), y2: y(rec.line[1]),
+        stroke: rec.sig ? css("--ink") : css("--ink"), "stroke-width": rec.sig ? 2 : 1.2, "stroke-dasharray": rec.sig ? "" : "4 4",
+        opacity: rec.sig ? 0.9 : 0.55, "stroke-linecap": "round" }));
+    }
+    if (axis) {
+      for (const year of [rec.years[0], 1990, 2000, 2010, 2020, rec.years[n - 1]]) {
+        const i = rec.years.indexOf(year);
+        if (i < 0 || (year !== rec.years[0] && year !== rec.years[n - 1] && (i < 3 || i > n - 4))) continue;
+        const anchor = i === 0 ? "start" : i === n - 1 ? "end" : "middle";
+        svg.append(Object.assign(s("text", { class: "axis", x: (i === 0 ? 0 : i === n - 1 ? n * cw : (i + 0.5) * cw), y: H + 13, "text-anchor": anchor }), { textContent: year }));
+      }
+      if (more) {
+        svg.append(Object.assign(s("text", { class: "axis", x: W, y: H + 13, "text-anchor": "end" }),
+          { textContent: rec.more > more ? `+${rec.more} years needed` : `+${rec.more} year${rec.more > 1 ? "s" : ""} needed` }));
+      }
+    }
+    return svg;
+  }
+
+  /* ---------- evidence and range ---------- */
+  function evidence(rec) {
+    const W = 260, max = 4, x = (v) => (Math.min(v, max) / max) * W;
+    const e = -Math.log10(Math.max(rec.p, 1e-6)), line = -Math.log10(0.05);
+    const svg = s("svg", { viewBox: `0 0 ${W} 22`, role: "img", "aria-label": `Evidence: ${pText(rec.p)}; the 5% line is p = 0.05` });
+    svg.append(s("rect", { x: 0, y: 4, width: W, height: 6, fill: css("--surface-2"), stroke: css("--line") }));
+    svg.append(s("rect", { x: 0, y: 4, width: x(e).toFixed(1), height: 6, fill: rec.sig ? claimColour(rec, rec.rate, true).replace(/var\((.*)\)/, (m, v) => css(v)) : css("--faint") }));
+    svg.append(s("line", { x1: x(line), x2: x(line), y1: 0, y2: 14, stroke: css("--ink"), "stroke-width": 1.5 }));
+    svg.append(Object.assign(s("text", { class: "t", x: x(line), y: 22, "text-anchor": "middle" }), { textContent: "5%" }));
+    svg.append(Object.assign(s("text", { class: "t", x: 0, y: 22 }), { textContent: "chance" }));
+    svg.append(Object.assign(s("text", { class: "t", x: W, y: 22, "text-anchor": "end" }), { textContent: "very unlikely to be chance" }));
+    return svg;
+  }
+
+  function rangeBar(rec) {
+    const W = 260, [lo, hi] = rec.range, span = Math.max(Math.abs(lo), Math.abs(hi), Math.abs(rec.rate)) * 1.25 || 1;
+    const x = (v) => W / 2 + (v / span) * (W / 2);
+    const colour = rec.sig ? css(claimColour(rec, rec.rate, true).slice(4, -1)) : css("--ink-3");
+    const svg = s("svg", { viewBox: `0 0 ${W} 22`, role: "img", "aria-label": `95% range ${lo.toFixed(3)} to ${hi.toFixed(3)} per decade` });
+    svg.append(s("line", { x1: 0, x2: W, y1: 8, y2: 8, stroke: css("--line"), "stroke-width": 1 }));
+    svg.append(s("line", { x1: x(0), x2: x(0), y1: 2, y2: 14, stroke: css("--ink-2"), "stroke-width": 1 }));
+    svg.append(Object.assign(s("text", { class: "t", x: x(0), y: 22, "text-anchor": "middle" }), { textContent: "0" }));
+    svg.append(s("line", { x1: x(lo), x2: x(hi), y1: 8, y2: 8, stroke: colour, "stroke-width": 4, "stroke-linecap": "round", opacity: rec.sig ? 1 : 0.7 }));
+    svg.append(s("circle", { cx: x(rec.rate), cy: 8, r: 4.5, fill: css("--surface"), stroke: colour, "stroke-width": 2 }));
+    return svg;
+  }
+
+  /* ---------- panel ---------- */
+  let DATA = null, current = 0, fillYears = Infinity, fillTimer = null;
+
+  function figures(rec) {
+    const d = digits(rec.rate);
+    const colour = claimColour(rec, rec.rate, rec.sig);
+    const item = (label, value, unit, note, style) => el("div", {},
+      el("div", { class: "fig-label", text: label }),
+      el("div", { class: "fig-value", style }, value, unit ? el("small", { text: ` ${unit}` }) : null),
+      el("div", { class: "fig-note", text: note }));
+    return el("div", { class: "figs" },
+      item("Rate of change", signed(rec.rate, d), "", `${rec.unit} per decade`, `color:${colour}`),
+      item("95% range", `${signed(rec.range[0], d)} to ${signed(rec.range[1], d)}`, "", "likely range of the true rate"),
+      item(`Total, ${rec.years[0]}–${rec.years.at(-1)}`, signed(rec.total, digits(rec.total)), rec.unit,
+        rec.pct == null ? "" : `${signed(rec.pct, 0)}% of the normal level`, `color:${claimColour(rec, rec.total, rec.sig)}`),
+      item("Against normal swings", `${rec.snr.toFixed(1)}×`, "", "the usual year-to-year swing"));
+  }
+
+  function renderPanel() {
+    const rec = DATA.examples[current];
+    const up = rec.rate > 0;
+    const head = rec.sig
+      ? [`${rec.label} in ${lc(rec.region)} is ${up ? "rising" : "falling"} by `, el("mark", { text: `${Math.abs(rec.rate).toPrecision(2).replace(/\.?0+$/, "")} ${rec.unit} per decade` })]
+      : [`${rec.label} in ${lc(rec.region)} shows no significant trend`];
+    const strip = el("div", { class: "record" }, record(rec, { fill: fillYears }));
+    $("panel").replaceChildren(
+      el("div", {},
+        el("p", { class: "question", text: `Is ${rec.label.toLowerCase()} changing in ${lc(rec.region)}?` }),
+        el("h2", { class: "headline" }, ...head)),
+      el("div", {}, strip, el("p", { class: "cap", text: `One cell per year, coloured by the difference from the 1991–2020 normal (${FAM[rec.family].name.toLowerCase()} family). Line: Theil-Sen trend${rec.sig ? "" : ", dashed because it could be chance"}.` })),
+      figures(rec),
+      el("div", { class: "meter-row" }, el("span", { text: "Evidence" }), evidence(rec),
+        el("span", { text: "95% range" }), rangeBar(rec)),
+      el("p", { class: "detail", text: rec.detail }));
+    $("trigger-glyph").replaceChildren(record(rec, { size: "glyph" }));
+    $("years").textContent = `${rec.years[0]}–${rec.years.at(-1)} · ${rec.years.length} years`;
+  }
+
+  /* ---------- the globe ---------- */
+  const canvas = $("globe"), ctx = canvas.getContext("2d");
+  let W = 0, H = 0, R = 0, CX = 0, CY = 0, DPR = 1;
+  let lon0 = -20, lat0 = 22, spinning = !REDUCED, pixels = null, image = null;
+  let mapData = null, pin = null;
+  const decode = (b64) => Uint8Array.from(atob(b64), (c) => c.charCodeAt(0));
+  const SUN = (() => {
+    // Subsolar point for now: declination and longitude from the date and UTC time.
+    const now = new Date(), start = Date.UTC(now.getUTCFullYear(), 0, 0);
+    const day = (now - start) / 864e5;
+    const decl = -23.44 * Math.cos((2 * Math.PI / 365) * (day + 10));
+    const hours = now.getUTCHours() + now.getUTCMinutes() / 60;
+    return { lat: decl * Math.PI / 180, lon: ((12 - hours) * 15) * Math.PI / 180 };
+  })();
+
+  function mapFor(rec) {
+    const key = rec.family === "thermal" ? "temperature" : rec.family === "water" ? "precipitation" : "haze";
+    const m = DATA.maps[key];
+    if (!m._v) { m._v = new Int8Array(decode(m.v).buffer); const bits = decode(m.s); m._s = (i) => (bits[i >> 3] >> (7 - (i & 7))) & 1; }
+    return m;
+  }
+
+  function resize() {
+    const box = $("viewport").getBoundingClientRect();
+    DPR = Math.min(2, window.devicePixelRatio || 1);
+    W = Math.round(box.width * DPR); H = Math.round(box.height * DPR);
+    canvas.width = W; canvas.height = H;
+    R = Math.min(W, H) * 0.42; CX = W * 0.5; CY = H * 0.48;
+    // Per pixel inside the disc: fixed latitude and longitude offset for this tilt.
+    const size = Math.ceil(R) * 2 + 2, list = [];
+    const sl = Math.sin(lat0 * Math.PI / 180), cl = Math.cos(lat0 * Math.PI / 180);
+    for (let py = -Math.ceil(R); py <= Math.ceil(R); py++) {
+      for (let px = -Math.ceil(R); px <= Math.ceil(R); px++) {
+        const x = px / R, y = -py / R, rr = x * x + y * y;
+        if (rr > 1) continue;
+        const z = Math.sqrt(1 - rr);
+        const lat = Math.asin(z * sl + y * cl);
+        const dl = Math.atan2(x, z * cl - y * sl);
+        list.push(px, py, lat, dl, z);
+      }
+    }
+    pixels = new Float32Array(list);
+    image = ctx.createImageData(size, size);
+    image._size = size;
+    draw();
+  }
+
+  function draw() {
+    if (!pixels || !mapData) return;
+    const m = mapData, data = image.data, size = image._size, half = Math.ceil(R);
+    data.fill(0);
+    const neutralNoData = [18, 23, 30];
+    const fam = m.family, dir = m.up === "b" ? 1 : -1;
+    const sinD = Math.sin(SUN.lat), cosD = Math.cos(SUN.lat);
+    for (let k = 0; k < pixels.length; k += 5) {
+      const px = pixels[k], py = pixels[k + 1], lat = pixels[k + 2], z = pixels[k + 4];
+      let lon = pixels[k + 3] + lon0 * Math.PI / 180;
+      const latDeg = lat * 180 / Math.PI;
+      let lonDeg = ((lon * 180 / Math.PI + 540) % 360) - 180;
+      const row = Math.min(179, Math.max(0, Math.floor(latDeg + 90)));
+      const col = Math.min(359, Math.max(0, Math.floor(lonDeg + 180)));
+      const idx = row * 360 + col;
+      const q = m._v[idx];
+      let c;
+      if (q === -128) c = neutralNoData;
+      else {
+        const full = darkRGB(fam, (q / 126) * dir);
+        if (m._s(idx)) c = full;
+        else c = [0, 1, 2].map((j) => Math.round(neutralNoData[j] + (full[j] - neutralNoData[j]) * 0.28)); // could be chance: faint
+      }
+      // Day and night: the real terminator for now, softened.
+      const sunDot = Math.sin(lat) * sinD + Math.cos(lat) * cosD * Math.cos(lon - SUN.lon);
+      const light = 0.55 + 0.45 * Math.min(1, Math.max(0, (sunDot + 0.12) / 0.3));
+      const limb = 0.72 + 0.28 * z;
+      const o = ((py + half) * size + (px + half)) * 4;
+      data[o] = c[0] * light * limb; data[o + 1] = c[1] * light * limb; data[o + 2] = c[2] * light * limb; data[o + 3] = 255;
+    }
+    ctx.clearRect(0, 0, W, H);
+    // Atmosphere
+    const glow = ctx.createRadialGradient(CX, CY, R * 0.96, CX, CY, R * 1.12);
+    glow.addColorStop(0, "rgba(137,195,254,0.22)"); glow.addColorStop(1, "rgba(137,195,254,0)");
+    ctx.fillStyle = glow; ctx.beginPath(); ctx.arc(CX, CY, R * 1.12, 0, Math.PI * 2); ctx.fill();
+    ctx.putImageData(image, Math.round(CX - half), Math.round(CY - half));
+    // Outlines
+    ctx.strokeStyle = "rgba(236,235,230,0.32)"; ctx.lineWidth = 0.8 * DPR;
+    const l0 = lon0 * Math.PI / 180, sl = Math.sin(lat0 * Math.PI / 180), cl = Math.cos(lat0 * Math.PI / 180);
+    ctx.beginPath();
+    for (const ring of DATA.outlines) {
+      let pen = false;
+      for (let i = 0; i < ring.length; i += 2) {
+        const lo = ring[i] * Math.PI / 180 - l0, la = ring[i + 1] * Math.PI / 180;
+        const cla = Math.cos(la);
+        const zz = sl * Math.sin(la) + cl * cla * Math.cos(lo);
+        if (zz <= 0.02) { pen = false; continue; }
+        const x = CX + R * cla * Math.sin(lo), y = CY - R * (cl * Math.sin(la) - sl * cla * Math.cos(lo));
+        if (pen) ctx.lineTo(x, y); else ctx.moveTo(x, y);
+        pen = true;
+      }
+    }
+    ctx.stroke();
+    ctx.strokeStyle = "rgba(137,195,254,0.35)"; ctx.lineWidth = 1 * DPR;
+    ctx.beginPath(); ctx.arc(CX, CY, R, 0, Math.PI * 2); ctx.stroke();
+    placePin();
+  }
+
+  function project(latDeg, lonDeg) {
+    const lo = (lonDeg - lon0) * Math.PI / 180, la = latDeg * Math.PI / 180;
+    const sl = Math.sin(lat0 * Math.PI / 180), cl = Math.cos(lat0 * Math.PI / 180);
+    const z = sl * Math.sin(la) + cl * Math.cos(la) * Math.cos(lo);
+    return { x: (CX + R * Math.cos(la) * Math.sin(lo)) / DPR, y: (CY - R * (cl * Math.sin(la) - sl * Math.cos(la) * Math.cos(lo))) / DPR, visible: z > 0 };
+  }
+
+  function unproject(cx, cy) {
+    const x = (cx * DPR - CX) / R, y = -(cy * DPR - CY) / R, rr = x * x + y * y;
+    if (rr > 1) return null;
+    const z = Math.sqrt(1 - rr), sl = Math.sin(lat0 * Math.PI / 180), cl = Math.cos(lat0 * Math.PI / 180);
+    const lat = Math.asin(z * sl + y * cl) * 180 / Math.PI;
+    const lon = ((Math.atan2(x, z * cl - y * sl) * 180 / Math.PI + lon0 + 540) % 360) - 180;
+    return { lat, lon };
+  }
+
+  function placePin() {
+    const old = $("viewport").querySelectorAll(".pin, .readout");
+    if (!pin) { old.forEach((n) => n.remove()); return; }
+    const p = project(pin.lat, pin.lon);
+    let dot = $("viewport").querySelector(".pin"), card = $("viewport").querySelector(".readout");
+    if (!p.visible) { old.forEach((n) => (n.style.display = "none")); return; }
+    if (!dot) { dot = el("span", { class: "pin" }); card = el("div", { class: "float readout" }); $("viewport").append(dot, card); fillReadout(card); }
+    for (const n of [dot, card]) { n.style.display = ""; n.style.left = `${p.x}px`; n.style.top = `${p.y}px`; }
+  }
+
+  function fillReadout(card) {
+    const m = mapData, row = Math.floor(pin.lat + 90), col = Math.floor(pin.lon + 180) % 360, idx = row * 360 + col;
+    const q = m._v[idx];
+    const where = `${Math.abs(pin.lat).toFixed(1)}°${pin.lat >= 0 ? "N" : "S"} ${Math.abs(pin.lon).toFixed(1)}°${pin.lon >= 0 ? "E" : "W"}`;
+    if (q === -128) { card.replaceChildren(el("span", { text: `${where} · no data here` })); return; }
+    const v = (q / 126) * m.vmax, sig = m._s(idx) === 1;
+    const family = m.family, pole = v * (m.up === "b" ? 1 : -1) > 0 ? 7 : 1;
+    // The readout floats over space, so it uses the dark steps whatever the page theme.
+    const darkPole = { thermal: ["#399cf6", "#ea6a5b"], water: ["#cd853e", "#07aeaa"], air: ["#ac7fdd", "#58ae5d"] }[family][pole === 7 ? 1 : 0];
+    card.replaceChildren(el("span", { style: "color:#858b93", text: `${where} · ` }),
+      el("b", { style: `color:${sig ? darkPole : "#858b93"}`, text: `${signed(v, digits(v))} ${m.unit}` }),
+      el("span", { style: "color:#858b93", text: ` per decade · ${sig ? "significant" : "could be chance"}` }));
+  }
+
+  function ripple(container, x, y) {
+    if (REDUCED) return;
+    for (const c of ["", "r2", "r3"]) {
+      const r = el("span", { class: `ripple ${c}`, style: `left:${x}px;top:${y}px` });
+      container.append(r);
+      setTimeout(() => r.remove(), 2400);
+    }
+  }
+
+  let drag = null;
+  canvas.addEventListener("pointerdown", (e) => { spinning = false; drag = { x: e.clientX, y: e.clientY, lon: lon0, moved: false }; canvas.setPointerCapture(e.pointerId); });
+  canvas.addEventListener("pointermove", (e) => {
+    if (!drag) return;
+    const dx = e.clientX - drag.x;
+    if (Math.abs(dx) > 3) drag.moved = true;
+    lon0 = drag.lon - (dx / (R / DPR)) * 57;
+    draw();
+  });
+  canvas.addEventListener("pointerup", (e) => {
+    const wasDrag = drag && drag.moved;
+    drag = null;
+    if (wasDrag) return;
+    const box = canvas.getBoundingClientRect(), x = e.clientX - box.left, y = e.clientY - box.top;
+    const hit = unproject(x, y);
+    if (!hit) return;
+    pin = hit;
+    $("viewport").querySelectorAll(".pin, .readout").forEach((n) => n.remove());
+    ripple($("viewport"), x, y);
+    placePin();
+  });
+
+  function spin() {
+    if (spinning) { lon0 += 0.06; draw(); }
+    requestAnimationFrame(spin);
+  }
+
+  function renderLegend() {
+    const m = mapData, fam = m.family, dir = m.up === "b" ? 1 : -1;
+    const darkRamp = DARK[fam];
+    const stops = dir > 0 ? darkRamp : [...darkRamp].reverse();
+    $("map-legend").replaceChildren(
+      el("h3", { text: `${m.label}: change per decade, ${m.period[0]}–${m.period[1]}` }),
+      el("div", { class: "ramp", style: `background:linear-gradient(90deg, ${stops.join(",")})` }),
+      el("div", { class: "ends num" }, el("span", { text: `${MINUS}${m.vmax}` }), el("span", { text: "0" }), el("span", { text: `+${m.vmax} ${m.unit}` })),
+      el("p", { text: "Bright cells: significant. Faint cells: could be chance. Night side shaded as it is now." }));
+  }
+
+  /* ---------- specimens ---------- */
+  function renderSizes() {
+    const rec = DATA.examples[0];
+    const row = DATA.rows.find((r) => r.var === "temperature") || rec;
+    $("sizes").replaceChildren(
+      el("div", { class: "size-row" }, el("span", { class: "k", text: "Full · verdict" }), el("div", { class: "record" }, record(rec, { ghosts: false }))),
+      el("div", { class: "size-row" }, el("span", { class: "k", text: "Row · tables" }),
+        el("div", { class: "scroll" }, table(DATA.rows.slice(0, 8)))),
+      el("div", { class: "size-row" }, el("span", { class: "k", text: "Glyph · pickers, pins" }),
+        el("div", { style: "display:flex;gap:16px;flex-wrap:wrap;align-items:center;font-size:13.5px" },
+          ...DATA.examples.slice(0, 5).map((r) => el("span", { style: "display:inline-flex;gap:8px;align-items:center" }, record(r, { size: "glyph" }), `${r.label}, ${lc(r.region)}`)))));
+  }
+
+  function table(rows) {
+    const t = el("table");
+    t.append(el("thead", {}, el("tr", {}, el("th", { text: "Variable, the Arctic" }), el("th", { text: "Record, 1981–2025" }),
+      el("th", { class: "n", text: "Per decade" }), el("th", { text: "Significant" }))));
+    const body = el("tbody");
+    for (const r of rows) {
+      body.append(el("tr", {},
+        el("td", { text: r.label }),
+        el("td", {}, record(r, { size: "row", ghosts: false })),
+        el("td", { class: "n" }, el("span", { style: `color:${claimColour(r, r.rate, r.sigFdr)};font-weight:${r.sigFdr ? 600 : 400}`, text: signed(r.rate, digits(r.rate)) }), " ",
+          el("span", { class: "unit", text: r.unit })),
+        el("td", {}, el("span", { class: `tag ${r.sigFdr ? "yes" : "no"}` }, el("i"), r.sigFdr ? "Yes" : "No"))));
+    }
+    t.append(body);
+    return t;
+  }
+
+  function renderFamilies() {
+    const pick = { thermal: 0, water: 3, air: 6 };
+    $("families").replaceChildren(...Object.entries(FAM).map(([key, f]) => {
+      const rec = DATA.examples[pick[key]];
+      return el("div", { class: "card fam" },
+        el("div", { class: "fam-head" }, el("strong", { text: f.name }), el("span", { class: "small muted", text: f.about })),
+        el("div", { class: "ramp-row", role: "img", "aria-label": `${f.name} family: ${f.a} to ${f.b}` },
+          ...Array.from({ length: 9 }, (_, i) => el("span", { style: `background:var(--${key}-${i})` }))),
+        el("div", { class: "ramp-ends" },
+          el("span", { style: `color:var(--${key}-a);font-weight:600`, text: `← ${f.a}` }), el("span", { class: "muted", text: "no change" }),
+          el("span", { style: `color:var(--${key}-b);font-weight:600`, text: `${f.b} →` })),
+        el("div", { class: "chips" }, ...MEMBERS[key].map((m) => el("span", { class: "chip", text: m }))),
+        el("div", { class: "record" }, record(rec, { ghosts: false })),
+        el("p", { class: "cap", text: `${rec.label}, ${lc(rec.region)}, ${rec.years[0]}–${rec.years.at(-1)}.` }));
+    }));
+  }
+
+  function verdictMini(rec) {
+    const d = digits(rec.rate);
+    return el("div", { class: "card" },
+      el("h3", { text: `${rec.label}, ${lc(rec.region)}` }),
+      el("div", { class: "fig-value", style: `color:${claimColour(rec, rec.rate, rec.sig)}` }, signed(rec.rate, d), el("small", { text: ` ${rec.unit} per decade` })),
+      el("p", { class: "small", style: "margin:2px 0 10px;color:var(--ink-2)" }, el("span", { class: `tag ${rec.sig ? "yes" : "no"}`, style: rec.sig ? `color:${claimColour(rec, rec.rate, true)}` : "" }, el("i"), rec.sig ? "Significant" : "Not significant"), ` · ${pText(rec.p)}`),
+      el("div", { class: "record" }, record(rec)),
+      el("div", { class: "meter-row", style: "margin-top:10px" }, el("span", { text: "95% range" }), rangeBar(rec)));
+  }
+
+  function renderEarned() {
+    $("earned").replaceChildren(verdictMini(DATA.examples[0]), verdictMini(DATA.examples[5]));
+  }
+
+  function renderProgress() {
+    const picks = [DATA.examples[0], DATA.examples[7], DATA.examples[5], DATA.examples[9], DATA.examples[8]];
+    $("progress").replaceChildren(
+      el("h3", { text: "Evidence, five real investigations" }),
+      ...picks.map((r) => el("div", { class: "meter-row", style: "margin-bottom:10px" },
+        el("span", {}, el("strong", { style: "display:block;font-weight:600", text: r.label }), el("span", { class: "muted", text: `${r.region} · ${pText(r.p)}` })),
+        evidence(r))),
+      el("h3", { style: "margin-top:16px", text: "Years still needed" }),
+      el("div", { class: "record" }, record(DATA.examples[8])),
+      el("p", { class: "cap", text: `Air pressure over the whole world: at the current rate, about ${DATA.examples[8].more} more years of data would settle it. Dashed cells are those years (shown up to 24).` }));
+  }
+
+  function renderRanges() {
+    $("ranges").replaceChildren(el("h3", { text: "Rate per decade, with its 95% range" }),
+      ...[0, 2, 4, 6, 5, 9].map((i) => {
+        const r = DATA.examples[i], d = digits(r.rate);
+        return el("div", { class: "meter-row", style: "margin-bottom:10px;grid-template-columns:minmax(120px,190px) minmax(0,1fr)" },
+          el("span", {}, el("strong", { style: `display:block;font-weight:600;color:${claimColour(r, r.rate, r.sig)}`, text: `${signed(r.rate, d)} ${r.unit}` }),
+            el("span", { class: "muted", text: `${r.label}, ${r.region}` })),
+          rangeBar(r));
+      }));
+  }
+
+  function renderCanary() {
+    const sw = (label, sample, note) => el("div", { class: "sw" }, el("div", { class: "c", style: "display:grid;place-items:center;background:var(--surface-2)" }, sample),
+      el("div", {}, el("div", { text: label }), el("div", { class: "mono", text: note })));
+    const svgOutline = s("svg", { viewBox: "0 0 60 30", width: 60, height: 30 });
+    svgOutline.append(s("path", { d: "M6 22 14 8 30 5 46 10 54 22 36 26Z", fill: "none", stroke: "#ffd21f", "stroke-width": 2.5, "stroke-linejoin": "round" }));
+    const focus = el("span", { class: "btn", style: "outline:2px solid var(--canary-ink);outline-offset:2px", text: "Focused" });
+    const markEl = el("span", { style: "font-weight:600;font-size:14px" }, el("mark", { style: "color:inherit;padding:0 3px;background:linear-gradient(transparent 55%, var(--canary-wash) 55%);box-shadow:inset 0 -2px 0 var(--canary)", text: "0.46 °C per decade" }));
+    const pinEl = el("span", { style: "position:relative;width:40px;height:30px;display:block;background:#06080b;border-radius:2px" }, el("span", { class: "pin", style: "left:20px;top:15px" }));
+    $("canary-uses").replaceChildren(sw("Chosen region", svgOutline, "--canary"), sw("The finding", markEl, "--canary-wash"),
+      sw("Clicked place", pinEl, "--canary"), sw("Keyboard focus", focus, "--canary-ink"));
+    const shapes = { stable: "M8 2a6 6 0 100 12A6 6 0 008 2z", watch: "M8 1.5 15 14.5H1Z", serious: "M8 1 15 8 8 15 1 8Z", critical: "M2 2h12v12H2z" };
+    $("status").replaceChildren(...[["stable", "Stable"], ["watch", "Watch"], ["serious", "Serious"], ["critical", "Critical"]].map(([k, label]) => {
+      const svg = s("svg", { viewBox: "0 0 16 16", "aria-hidden": "true" });
+      svg.append(s("path", { d: shapes[k], fill: `var(--${k})` }));
+      return el("span", {}, svg, label);
+    }));
+  }
+
+  function renderContours() {
+    const c = $("contours"), box = c.getBoundingClientRect(), dpr = Math.min(2, devicePixelRatio || 1);
+    c.width = box.width * dpr; c.height = box.height * dpr;
+    const g = c.getContext("2d"), e = DATA.elevation;
+    const raw = decode(e.data), grid = new Uint16Array(raw.buffer);
+    const at = (x, y) => grid[y * e.w + x] * e.scale;
+    g.fillStyle = css("--surface"); g.fillRect(0, 0, c.width, c.height);
+    const sx = c.width / (e.w - 1), sy = c.height / (e.h - 1), scale = Math.max(sx, sy), ox = (c.width - (e.w - 1) * scale) / 2, oy = (c.height - (e.h - 1) * scale) / 2;
+    for (let level = 250; level < 3800; level += 250) {
+      const major = level % 1000 === 0;
+      g.strokeStyle = major ? css("--ink-2") : css("--ink-3");
+      g.globalAlpha = major ? 0.8 : 0.45;
+      g.lineWidth = (major ? 1.2 : 0.7) * dpr;
+      g.beginPath();
+      for (let y = 0; y < e.h - 1; y++) {
+        for (let x = 0; x < e.w - 1; x++) {
+          const v = [at(x, y), at(x + 1, y), at(x + 1, y + 1), at(x, y + 1)];
+          let code = 0;
+          v.forEach((val, i) => { if (val >= level) code |= 1 << i; });
+          if (code === 0 || code === 15) continue;
+          const pt = (a, b) => {
+            const corners = [[0, 0], [1, 0], [1, 1], [0, 1]];
+            const t = (level - v[a]) / (v[b] - v[a]);
+            return [ox + (x + corners[a][0] + (corners[b][0] - corners[a][0]) * t) * scale, oy + (y + corners[a][1] + (corners[b][1] - corners[a][1]) * t) * scale];
+          };
+          const edges = [];
+          for (const [a, b] of [[0, 1], [1, 2], [2, 3], [3, 0]]) if (((code >> a) & 1) !== ((code >> b) & 1)) edges.push(pt(a, b));
+          for (let i = 0; i + 1 < edges.length; i += 2) { g.moveTo(...edges[i]); g.lineTo(...edges[i + 1]); }
+        }
+      }
+      g.stroke();
+    }
+    g.globalAlpha = 1;
+    // The summit, marked as a place you clicked would be.
+    const px = ox + ((e.w - 1) / 2) * scale, py = oy + ((e.h - 1) / 2) * scale;
+    g.fillStyle = "#ffd21f"; g.beginPath(); g.arc(px, py, 3.5 * dpr, 0, Math.PI * 2); g.fill();
+  }
+
+  function renderTokens() {
+    const rows = [
+      ["--bg", "Page"], ["--surface", "Cards, panel"], ["--surface-2", "Table heads, wells"], ["--line", "Hairlines"], ["--line-strong", "Control borders"],
+      ["--ink", "Text, trend line"], ["--ink-2", "Secondary text"], ["--ink-3", "Labels, units, a claim not yet earned"], ["--faint", "Evidence that has not reached 5%"],
+      ["--canary", "Look here: selection, clicked place"], ["--canary-ink", "Focus ring, yellow on paper"], ["--canary-wash", "The finding's highlight"],
+      ["--space", "Behind the globe, both themes"],
+      ["--thermal-a", "Cooler, as text"], ["--thermal-b", "Warmer, as text"], ["--water-a", "Drier, as text"], ["--water-b", "Wetter, as text"],
+      ["--air-a", "More in the air, as text"], ["--air-b", "More sun and wind, as text"],
+      ["--stable", "Status: stable"], ["--watch", "Status: watch"], ["--serious", "Status: serious"], ["--critical", "Status: critical"],
+    ];
+    $("tokens").replaceChildren(el("thead", {}, el("tr", {}, el("th", { text: "Token" }), el("th", { text: "Value now" }), el("th", { text: "Job" }))),
+      el("tbody", {}, ...rows.map(([name, job]) => {
+        const v = css(name).startsWith("var(") ? css(css(name).slice(4, -1)) : css(name);
+        return el("tr", {}, el("td", { text: name }), el("td", { class: "mono" }, el("span", { class: "sq", style: `background:${v}` }), v), el("td", { text: job }));
+      })));
+    const style = document.querySelector("style").textContent;
+    const end = style.indexOf("* { box-sizing");
+    $("css-out").textContent = style.slice(style.indexOf(":root {"), end).trim();
+  }
+
+  /* ---------- theme ---------- */
+  function setTheme(mode) {
+    if (mode === "system") delete document.documentElement.dataset.theme; else document.documentElement.dataset.theme = mode;
+    document.querySelectorAll("[data-theme-set]").forEach((b) => b.setAttribute("aria-pressed", String(b.dataset.themeSet === mode)));
+    try { localStorage.setItem("strata-theme", mode); } catch {}
+    renderAll();
+  }
+  document.querySelectorAll("[data-theme-set]").forEach((b) => b.addEventListener("click", () => setTheme(b.dataset.themeSet)));
+  matchMedia("(prefers-color-scheme: dark)").addEventListener("change", () => renderAll());
+
+  function renderAll() {
+    if (!DATA) return;
+    readRamps();
+    renderPanel(); renderSizes(); renderFamilies(); renderEarned(); renderProgress(); renderRanges(); renderCanary(); renderTokens(); renderContours();
+    // The mark carries a tiny record too.
+    const strip = document.getElementById("mark-strip");
+    strip.replaceChildren();
+    const rec = DATA.examples[0], { a, scale } = anomalies(rec);
+    for (let i = 0; i < 9; i++) {
+      const part = a.slice(Math.floor(i * a.length / 9), Math.floor((i + 1) * a.length / 9)).filter((v) => v != null);
+      const m = part.reduce((x, y) => x + y, 0) / part.length;
+      strip.append(s("rect", { x: 4 + i * 2.7, y: 23, width: 2.4, height: 4, fill: rgb(darkRGB("thermal", (m / scale) * 1.4)) }));
+    }
+  }
+
+  $("example").addEventListener("change", (e) => {
+    current = Number(e.target.value);
+    mapData = mapFor(DATA.examples[current]);
+    pin = null; placePin();
+    renderLegend(); renderPanel(); draw();
+  });
+
+  $("replay").addEventListener("click", () => {
+    clearInterval(fillTimer);
+    $("example").scrollIntoView({ behavior: REDUCED ? "auto" : "smooth", block: "start" });
+    fillYears = 0;
+    const n = DATA.examples[current].years.length;
+    fillTimer = setInterval(() => {
+      fillYears += 1;
+      renderPanel();
+      if (fillYears >= n) { clearInterval(fillTimer); fillYears = Infinity; }
+    }, REDUCED ? 0 : 45);
+  });
+
+  $("copy-css").addEventListener("click", async () => {
+    try { await navigator.clipboard.writeText($("css-out").textContent); $("copy-state").textContent = "Copied."; }
+    catch { const r = document.createRange(); r.selectNodeContents($("css-out")); getSelection().removeAllRanges(); getSelection().addRange(r); $("copy-state").textContent = "Selected; press copy."; }
+  });
+
+  $("ripple-art").addEventListener("click", (e) => {
+    const box = e.currentTarget.getBoundingClientRect();
+    ripple(e.currentTarget, e.clientX - box.left, e.clientY - box.top);
+  });
+
+  let saved = null;
+  try { saved = localStorage.getItem("strata-theme"); } catch {}
+
+  fetch("data.json").then((r) => r.json()).then((data) => {
+    DATA = data;
+    $("example").replaceChildren(...DATA.examples.map((r, i) => el("option", { value: i, text: `${r.label} · ${r.region}` })));
+    mapData = mapFor(DATA.examples[0]);
+    if (saved === "light" || saved === "dark") setTheme(saved); else renderAll();
+    renderLegend();
+    resize();
+    new ResizeObserver(() => resize()).observe($("viewport"));
+    let contourWidth = 0;
+    new ResizeObserver((entries) => { const w = entries[0].contentRect.width; if (Math.abs(w - contourWidth) > 2) { contourWidth = w; renderContours(); } }).observe($("contours"));
+    // Open with the record filling, then the globe turning.
+    fillYears = 0;
+    const n = DATA.examples[0].years.length;
+    if (REDUCED) fillYears = Infinity;
+    else fillTimer = setInterval(() => { fillYears += 1; renderPanel(); if (fillYears >= n) { clearInterval(fillTimer); fillYears = Infinity; } }, 30);
+    requestAnimationFrame(spin);
+  }).catch((err) => {
+    $("panel").replaceChildren(el("p", { text: `The data did not load: ${err.message}` }));
+  });
+})();
+</script>
