@@ -1,4 +1,14 @@
-# Canary
+<p align="center">
+  <picture>
+    <source media="(prefers-color-scheme: dark)" srcset="docs/logo-dark.png">
+    <img src="docs/logo-light.png" alt="Canary" width="440">
+  </picture>
+</p>
+
+<p align="center">
+  <img src="docs/hero.jpg" alt="Canary: the last 24 hours of NASA GEOS-FP clouds and wind on the globe, with live disaster, weather-warning and methane alerts building in the side panel" width="100%">
+</p>
+<p align="center"><sub>Weather mode: the last 24 hours of NASA GEOS-FP clouds and 10 m wind, drawn on the GPU, while live alerts (GDACS, USGS, NWS, Carbon Mapper, EONET) arrive in the panel.</sub></p>
 
 **Be an Earth trend detective.** Ask "Is [a variable] changing in [a region]?" and get a
 verdict in plain words: rising or falling, by how much per decade, and whether the change is
