@@ -6,6 +6,11 @@
 </p>
 
 <p align="center">
+  <a href="https://print-eddyma.github.io/Canary/"><b>▶ Try Canary live</b></a> &nbsp;·&nbsp;
+  <a href="docs/demo.mp4"><b>Watch the 30-second demo</b></a>
+</p>
+
+<p align="center">
   <a href="https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/"><img alt="NASA Space Apps Challenge 2026" src="https://img.shields.io/badge/NASA_Space_Apps-2026-0b3d91?style=for-the-badge"></a>
   <a href="https://www.spaceappschallenge.org/2026/challenges/earth-system-trend-detective/"><img alt="Challenge: Earth System Trend Detective" src="https://img.shields.io/badge/Challenge-Earth_System_Trend_Detective-fc3d21?style=for-the-badge"></a>
   <a href="#data-credits"><img alt="Data: NASA POWER, GEOS-FP, GIBS, EONET" src="https://img.shields.io/badge/Data-NASA_POWER_·_GEOS--FP_·_GIBS_·_EONET-ffd21f?style=for-the-badge&labelColor=14181f"></a>
@@ -80,6 +85,27 @@ The snapshot needs no backend: every variable is precomputed for the whole world
 regions, the continents and the countries over its full record, with today's indicators,
 events and wind and four example places (about 21 MB). Custom years, boxes drawn on the globe,
 other places and NASA's satellite imagery need the running app.
+
+### The live site
+
+[print-eddyma.github.io/Canary](https://print-eddyma.github.io/Canary/) is a static build of the app on
+GitHub Pages, served from the `gh-pages` branch:
+
+- **Trend results** are precomputed for every variable and every region and country, with all the
+  charts.
+- **NASA imagery, the satellite loop, and the GDACS, USGS, NWS and EONET alerts** are read live by
+  the browser.
+- **Methane plumes and the 24-hour weather** come from the snapshot, because Carbon Mapper and
+  GEOS-FP do not accept browser requests.
+
+Any year range, any point on Earth and boxes drawn on the globe need the server above. To rebuild
+the site:
+
+```bash
+.venv/bin/python -m canary.snapshot site --web
+```
+
+Then push the contents of `site/` to the `gh-pages` branch.
 
 ## How it answers the challenge
 

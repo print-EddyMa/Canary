@@ -20,6 +20,7 @@ const FIRST_YEAR = 1981, LAST_YEAR = 2025, MIN_SPAN = 15;
 const SERIES = ["#ffd21f", "#ecebe6"];
 // Snapshot build: results are precomputed for the full record and built-in regions only.
 const PREVIEW = Boolean(window.CANARY_PREVIEW);
+const OFFLINE = PREVIEW && !window.CANARY_PREVIEW.web; // the sandboxed snapshot: no NASA imagery
 
 const DEMOS = [
   { id: "arctic", title: "The Arctic is warming",
@@ -314,7 +315,7 @@ function renderSeries(a, b) {
       viewTabs("View", views, draw, seriesView),
       el("div", { class: "tools" },
         toolButton("info", "About this result", () => openAbout(a)),
-        PREVIEW ? null : toolButton("download", "Download the yearly data (CSV)", () => downloadCsv(a, b)),
+        OFFLINE ? null : toolButton("download", "Download the yearly data (CSV)", () => downloadCsv(a, b)),
         PREVIEW ? null : toolButton("link", "Copy a link to this view", copyLink),
         toolButton("quote", "Cite this result and get its API query", openCite))),
     body);
@@ -421,7 +422,7 @@ function attachMap() {
     layout: { "line-join": "round" }, paint: { "line-color": color, "line-width": width, ...extra } }, under);
   map.addLayer({ id: "country-hit", type: "fill", source: "countries", paint: { "fill-color": "#ffffff", "fill-opacity": 0 } }, under);
   // The snapshot build has no reference imagery, so it draws the outlines itself.
-  if (PREVIEW) line("country-lines", "countries", null, "rgba(232,234,237,0.35)", 0.6);
+  if (OFFLINE) line("country-lines", "countries", null, "rgba(232,234,237,0.35)", 0.6);
   line("country-hover", "countries", NO_COUNTRY, "#ffffff", 1.2);
   const casing = "rgba(11,14,19,0.75)";
   line("sel-a-case", "countries", NO_COUNTRY, casing, 5);
@@ -683,7 +684,7 @@ function registerCommands() {
   const view = (mode) => () => canary.setMode(mode);
   addGroup({ name: "Actions", limit: 6, idle: 7, items: () => [
     { icon: "◐", label: "Show weather, last 24 hours", detail: "Clouds, rain, temperature and wind from NASA GEOS-FP", keys: ["2"], keywords: "weather clouds rain wind now", run: view("weather") },
-    ...(PREVIEW ? [] : [{ icon: "◉", label: "Show the satellite loop", detail: "GOES and Himawari, last 3 hours", keys: ["3"], keywords: "satellite imagery goes himawari clouds live", run: view("satellite") }]),
+    ...(OFFLINE ? [] : [{ icon: "◉", label: "Show the satellite loop", detail: "GOES and Himawari, last 3 hours", keys: ["3"], keywords: "satellite imagery goes himawari clouds live", run: view("satellite") }]),
     { icon: "↗", label: "Show trends", detail: "The chosen variable's trend map", keys: ["1"], keywords: "trend map", run: view("trends") },
     { icon: "▥", label: "Trend as 3D columns", detail: "Height is the rate; only significant cells rise", keys: ["D"], keywords: "3d columns extrude bars height", run: () => { view("trends")(); document.getElementById("toggle-3d").click(); } },
     { icon: "⇄", label: "Compare with another region…", keywords: "compare versus vs", run: () => boxes.compare.open() },
@@ -775,7 +776,7 @@ async function update() {
 /* ---------- start ---------- */
 
 async function main() {
-  if (PREVIEW) $("theme-toggle").hidden = true; // the host page sets the theme
+  if (OFFLINE) $("theme-toggle").hidden = true; // the host page sets the theme
   else initTheme($("theme-toggle"));
   $("ask").addEventListener("submit", (event) => event.preventDefault());
 

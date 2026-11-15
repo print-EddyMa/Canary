@@ -198,7 +198,7 @@ function renderFilters() {
 
 function setStatus() {
   const s = $("live-status");
-  if (window.CANARY_PREVIEW) { s.dataset.state = "polling"; s.textContent = "Snapshot: not live"; return; }
+  if (window.CANARY_PREVIEW && !window.CANARY_PREVIEW.web) { s.dataset.state = "polling"; s.textContent = "Snapshot: not live"; return; }
   s.dataset.state = live.connected ? "live" : "polling";
   s.textContent = live.connected ? `Live · updated ${live.polled ? ago(new Date(live.polled * 1000).toISOString()) : "now"}` : "Reconnecting…";
 }
@@ -248,7 +248,24 @@ async function load() {
   setTimeout(() => { live.fresh.clear(); renderFeed(); }, 1500);
 }
 
+/** The web build has no server to push alerts, so it asks the feeds again every five minutes. */
+function poll() {
+  live.connected = true;
+  setInterval(async () => {
+    try {
+      const data = await getJSON("/api/alerts");
+      live.polled = data.polled;
+      for (const a of data.alerts) receive(a);
+      live.connected = true;
+    } catch (error) {
+      live.connected = false;
+    }
+    setStatus();
+  }, 300000);
+}
+
 function connect() {
+  if (window.CANARY_PREVIEW && window.CANARY_PREVIEW.web) { poll(); return; }
   if (window.CANARY_PREVIEW || !window.EventSource) return;
   const source = new EventSource("/api/alerts/stream");
   source.addEventListener("open", () => { live.connected = true; setStatus(); });

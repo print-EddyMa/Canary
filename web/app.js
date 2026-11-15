@@ -14,6 +14,8 @@ const WORLD = [[-180, 85.051129], [180, 85.051129], [180, -85.051129], [-180, -8
 const REDUCED_MOTION = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
 // Snapshot build (no backend, no outside imagery): the globe shows Canary's own maps only.
 const PREVIEW = Boolean(window.CANARY_PREVIEW);
+// The sandboxed snapshot cannot reach NASA imagery; the web build (GitHub Pages) can.
+const OFFLINE = PREVIEW && !window.CANARY_PREVIEW.web;
 
 const DEMOS = [
   { name: "Svalbard, Arctic Norway", lat: 78.2, lon: 15.6, note: "Among the fastest-warming places on Earth" },
@@ -76,7 +78,7 @@ const map = new maplibregl.Map({
     projection: { type: "globe" },
     sky: { "atmosphere-blend": ["interpolate", ["linear"], ["zoom"], 0, 1, 5, 1, 7, 0] },
     sources: {
-      ...(PREVIEW ? {} : {
+      ...(OFFLINE ? {} : {
         base: {
           type: "raster",
           tiles: [`${GIBS}/BlueMarble_ShadedRelief_Bathymetry/default/GoogleMapsCompatible_Level8/{z}/{y}/{x}.jpeg`],
@@ -104,7 +106,7 @@ const map = new maplibregl.Map({
     },
     layers: [
       { id: "space", type: "background", paint: { "background-color": "#05070c" } },
-      ...(PREVIEW ? [] : [
+      ...(OFFLINE ? [] : [
         { id: "base", type: "raster", source: "base" },
         { id: "borders", type: "raster", source: "borders", paint: { "raster-opacity": 0.55 } },
         { id: "labels", type: "raster", source: "labels", minzoom: 2.5 },
@@ -915,7 +917,7 @@ function stopLoop() {
 
 const modeButtons = [...document.querySelectorAll("[data-mode]")];
 // The snapshot cannot reach NASA's imagery servers, so it has no satellite loop.
-if (PREVIEW) modeButtons.find((b) => b.dataset.mode === "satellite").hidden = true;
+if (OFFLINE) modeButtons.find((b) => b.dataset.mode === "satellite").hidden = true;
 modeButtons.forEach((b) => b.addEventListener("click", () => setMode(b.dataset.mode)));
 
 /** Switch what the globe shows. */

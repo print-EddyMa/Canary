@@ -102,7 +102,7 @@ def write_data(out: Path) -> None:
         for interest in [None, *catalogue.INTERESTS] for place in [None, *catalogue.PLACE_KINDS]})
 
 
-def write_pages(out: Path) -> None:
+def write_pages(out: Path, web: bool = False) -> None:
     for name in SCRIPTS:
         shutil.copy(WEB / name, out / name)
     # Binary grids go out as base64 text, which every static host serves.
@@ -126,6 +126,14 @@ def write_pages(out: Path) -> None:
                 f'<link rel="stylesheet" href="{fonts}">\n'
                 f"<style>{maplibre_css}</style>\n<style>{css}</style>\n{body.strip()}\n{scripts}\n")
     (out / "page.html").write_text(fragment)
+    if web:
+        # GitHub Pages and other static hosts can reach NASA imagery and the alert feeds.
+        from fastapi.testclient import TestClient
+
+        from .api import app
+        _dump(out / "data/layers.json", TestClient(app).get("/api/layers").raise_for_status().json())
+        fragment = fragment.replace('<script src="preview.js">', '<script>window.CANARY_WEB = true;</script>\n<script src="preview.js">')
+        (out / ".nojekyll").write_text("")
     (out / "index.html").write_text(
         "<!doctype html>\n<html lang=\"en\">\n<head>\n<meta charset=\"utf-8\">\n"
         "<meta name=\"viewport\" content=\"width=device-width, initial-scale=1, viewport-fit=cover\">\n"
@@ -136,6 +144,7 @@ def main() -> None:
     parser = argparse.ArgumentParser(description=__doc__.split("\n")[0])
     parser.add_argument("out", type=Path)
     parser.add_argument("--pages-only", action="store_true", help="rebuild the pages, keep existing data")
+    parser.add_argument("--web", action="store_true", help="for a public static host: live NASA imagery, satellite loop and alerts")
     args = parser.parse_args()
     args.out.mkdir(parents=True, exist_ok=True)
     if not args.pages_only:
@@ -143,7 +152,7 @@ def main() -> None:
         if missing:
             raise SystemExit(f"Global grids not fetched yet ({', '.join(missing)}). Run: python -m canary.cube")
         write_data(args.out)
-    write_pages(args.out)
+    write_pages(args.out, web=args.web)
     size = sum(f.stat().st_size for f in args.out.rglob("*") if f.is_file())
     print(f"Snapshot in {args.out}: {size / 1e6:.1f} MB")
 
