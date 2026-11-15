@@ -6,6 +6,14 @@
    map stays smooth at every zoom and the values stay readable under the cursor. */
 
 const WORLD = [[-180, 85.051129], [180, 85.051129], [180, -85.051129], [-180, -85.051129]];
+
+/** Raw bytes from the server (or, in a snapshot build, from a base64 text file beside the page). */
+async function getBytes(url) {
+  if (window.CANARY_PREVIEW) return window.CANARY_PREVIEW.bytes(url);
+  const response = await fetch(url);
+  if (!response.ok) throw new Error(`${url} did not load`);
+  return response.arrayBuffer();
+}
 const hexRGB = (h) => [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255);
 
 const VERTEX = `#version 300 es
@@ -223,10 +231,7 @@ export class TrendField {
 
   async load(layer) {
     if (!this.cache.has(layer.id)) {
-      this.cache.set(layer.id, fetch(layer.grid.file).then((r) => {
-        if (!r.ok) throw new Error(`The trend map for ${layer.label} did not load.`);
-        return r.arrayBuffer();
-      }));
+      this.cache.set(layer.id, getBytes(layer.grid.file));
     }
     const buffer = await this.cache.get(layer.id);
     const { nlat, nlon } = layer.grid;
@@ -319,11 +324,7 @@ export class WeatherField {
     const meta = await getJSON("/api/weather");
     if (meta.status !== "ready") return meta;
     if (this.meta && this.meta.times[this.meta.times.length - 1] === meta.times[meta.times.length - 1]) return this.meta;
-    const fetchBytes = async (name) => {
-      const response = await fetch(window.CANARY_PREVIEW ? `data/weather/${name}.bin` : `/api/weather/${name}`);
-      if (!response.ok) throw new Error(`Weather field ${name} did not load.`);
-      return new Uint8Array(await response.arrayBuffer());
-    };
+    const fetchBytes = async (name) => new Uint8Array(await getBytes(`/api/weather/${name}`));
     const [cloud, precip, temp, u, v] = await Promise.all(["cloud", "precip", "temp", "u", "v"].map(fetchBytes));
     this.meta = meta;
     this.data = { cloud, precip, temp, u, v };

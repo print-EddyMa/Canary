@@ -50,7 +50,18 @@
     }
   }
 
-  window.CANARY_PREVIEW = { getJSON };
+  /** Binary grids are published as base64 text, the one form every file host serves. */
+  async function bytes(url) {
+    const path = url.startsWith("/api/weather/") ? `data/weather/${url.slice(13)}.b64.txt` : url.replace(/\.bin$/, ".b64.txt");
+    const response = await fetch(path);
+    if (!response.ok) throw new Error(`${path} did not load`);
+    const text = atob((await response.text()).trim());
+    const out = new Uint8Array(text.length);
+    for (let i = 0; i < text.length; i++) out[i] = text.charCodeAt(i);
+    return out.buffer;
+  }
+
+  window.CANARY_PREVIEW = { getJSON, bytes };
 
   document.addEventListener("DOMContentLoaded", async () => {
     const meta = await file("data/snapshot.json").catch(() => null);

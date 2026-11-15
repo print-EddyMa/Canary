@@ -12,6 +12,7 @@ drawn on the globe, other places and NASA's satellite imagery need the running a
 from __future__ import annotations
 
 import argparse
+import base64
 import datetime as dt
 import json
 import re
@@ -68,7 +69,8 @@ def write_data(out: Path) -> None:
             _dump(out / "data/weather.json", meta)
             for name in meta["fields"]:
                 (out / "data/weather").mkdir(parents=True, exist_ok=True)
-                (out / f"data/weather/{name}.bin").write_bytes(client.get(f"/api/weather/{name}").raise_for_status().content)
+                raw = client.get(f"/api/weather/{name}").raise_for_status().content
+                (out / f"data/weather/{name}.b64.txt").write_text(base64.b64encode(raw).decode())
     _dump(out / "data/snapshot.json", {"date": dt.date.today().strftime("%-d %B %Y"), "regions": len(ids)})
 
     per_region: dict[str, list[dict]] = {r: [] for r in ids}
@@ -93,7 +95,13 @@ def write_data(out: Path) -> None:
 def write_pages(out: Path) -> None:
     for name in SCRIPTS:
         shutil.copy(WEB / name, out / name)
-    shutil.copytree(WEB / "maps", out / "maps", dirs_exist_ok=True)
+    # Binary grids go out as base64 text, which every static host serves.
+    (out / "maps").mkdir(parents=True, exist_ok=True)
+    for f in (WEB / "maps").iterdir():
+        if f.suffix == ".bin":
+            (out / "maps" / f"{f.stem}.b64.txt").write_text(base64.b64encode(f.read_bytes()).decode())
+        else:
+            shutil.copy(f, out / "maps" / f.name)
 
     html = (WEB / "index.html").read_text()
     body = re.search(r"<body>(.*)</body>", html, re.S).group(1)
